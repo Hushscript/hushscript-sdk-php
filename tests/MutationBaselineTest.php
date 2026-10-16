@@ -204,7 +204,7 @@ FIXTURE);
                 self::assertStringContainsString($scenario === 'rounded-time' ? 'time="0.250001"' : 'time="0.25"', self::readText($run.'/junit.xml'));
                 $command = self::readText($dir.'/mutants.log');
                 self::assertStringContainsString('off --coverage='.$run.' --skip-initial-tests --test-framework-options=--no-coverage', $command);
-                self::assertStringContainsString('--threads=4 --only-covering-test-cases --min-msi=80', $command);
+                self::assertStringContainsString('--threads=4 --only-covering-test-cases --with-uncovered --min-msi=80', $command);
                 self::assertStringNotContainsString('--timeout', $command);
                 $commands = self::readText($dir.'/reports/commands.log');
                 self::assertStringContainsString('coverage -d auto_prepend_file=', $commands);
