@@ -256,7 +256,7 @@ cat "$run/input-validation.log"
 export XDEBUG_MODE=off
 result=0
 infection --coverage="$run" --skip-initial-tests --test-framework-options=--no-coverage \
-    --threads=4 --only-covering-test-cases --min-msi=80 --no-progress \
+    --threads=4 --only-covering-test-cases --with-uncovered --min-msi=80 --no-progress \
     > "$run/mutation-output.log" 2>&1 || result=$?
 cat "$run/mutation-output.log"
 php scripts/check-mutation.php "$reports/infection.json" 80 || exit 1
