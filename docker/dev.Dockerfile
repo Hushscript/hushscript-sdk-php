@@ -1,12 +1,12 @@
 ARG PHP_VERSION=8.2
 
-FROM php:8.2-cli-bookworm@sha256:0d6ec82fde85307fd9c672527017fccf9bac55f254756f035e542f8c566b63c9 AS php8.2
-FROM php:8.3-cli-bookworm@sha256:c24b55afdf860c874b9ec6267ced132ff52de97d308ab08e6cf41e8596e509f7 AS php8.3
-FROM php:8.4-cli-bookworm@sha256:836ac6c672d1372a47c8fd61b625015bd07760f493fb2eaab2087636498a2b4b AS php8.4
-FROM php:8.5-cli-bookworm@sha256:819080ed413631f6ec564184dd9acd08d9425bd863b9f8b5876b5ea2147d55e7 AS php8.5
-FROM composer:2@sha256:af98f42dfff7c68ba8d53c2164fd9fde1087b7d449514baa38c418b1f6bc4bac AS composer
-FROM busybox:1.36-musl@sha256:3c6ae8008e2c2eedd141725c30b20d9c36b026eb796688f88205845ef17aa213 AS busybox
-FROM mlocati/php-extension-installer:2.12.1@sha256:486d090fba21c04170262152c0ae63e7434d75e84fdd13450201c7fd54721b22 AS ipe
+FROM php:8.2-cli-bookworm@sha256:58bd7cb60b690c01106084ce4a0a73eb01094ceb00904ebb4b8514516765292a AS php8.2
+FROM php:8.3-cli-bookworm@sha256:cdb77e306d6bb99db40e513fbe036ecc6c53b575cbcb7e581387845fef26d755 AS php8.3
+FROM php:8.4-cli-bookworm@sha256:496b5e02fe9fe44fcfb715023b931048111dc4e0bc719789d83c906be9f04b05 AS php8.4
+FROM php:8.5-cli-bookworm@sha256:d4f6e10eb393de7e3a7a88e8b88e139072dd3ae297f6a5dada8257e6fe32c585 AS php8.5
+FROM composer:2@sha256:da624c2c705d54e2f5a9bb77a5dc6c7d091711433ebefd7035672e84c2010fee AS composer
+FROM busybox:1.38-musl@sha256:ea2b9914a16a4ac1981994af97b318f7c7d4db76b580c56177f08bf76f4a0be8 AS busybox
+FROM mlocati/php-extension-installer:2.12.3@sha256:ac4b252c153a9f6de5578ff2c417790aba836bb49855543144606033eceda253 AS ipe
 
 # PHP 8.2 through 8.5 above are the digest-pinned images; the build arg only selects one.
 # hadolint ignore=DL3006

@@ -10,7 +10,7 @@ export CONFORMANCE_STRICT := env("CONFORMANCE_STRICT", "1")
 conformance_ref := `tr -d '[:space:]' < conformance-ref`
 export CONFORMANCE_CONTEXT := env("CONFORMANCE_CONTEXT", "https://github.com/Hushscript/hushscript-sdk-conformance.git#" + conformance_ref)
 
-node_image := "node:22-bookworm-slim@sha256:c3de60bf2f9dd0ac6370e6117950ff62d6e339527e7472301c9c78a017978392"
+node_image := "node:22-bookworm-slim@sha256:de170b39439eb0e5a3444ad7d60b015614a381e10fecae2e30ec9e735122f38d"
 hadolint_image := "hadolint/hadolint:v2.15.1@sha256:32dac94127fd60b7b7e3fbfc65e1383b9b5e25c9bfd7b8536de7a539fe68a12d"
 actionlint_image := "rhysd/actionlint:1.7.12@sha256:b1934ee5f1c509618f2508e6eb47ee0d3520686341fec936f3b79331f9315667"
 zizmor_image := "ghcr.io/zizmorcore/zizmor:1.31.1@sha256:42d409dbb851d4c5d35a058cf042b828bea1e3f2884378c526eb0974780e18d9"
@@ -79,7 +79,7 @@ lint version=floor:
     run() { docker run {{sandbox}} --network none --user "$(id -u):$(id -g)" -v "$(pwd)":/work:ro -w /work -e HOME=/tmp "$@"; }
     run {{hadolint_image}} /bin/hadolint docker/dev.Dockerfile docker/typos.Dockerfile
     run {{actionlint_image}} -color
-    run node:22-bookworm-slim@sha256:c3de60bf2f9dd0ac6370e6117950ff62d6e339527e7472301c9c78a017978392 timeout 60 node --test scripts/release-candidate.test.mjs
+    run node:22-bookworm-slim@sha256:de170b39439eb0e5a3444ad7d60b015614a381e10fecae2e30ec9e735122f38d timeout 60 node --test scripts/release-candidate.test.mjs
     run --label codex.adhoc=1 {{node_image}} timeout 60 node --test scripts/release-candidate.test.mjs
     run {{zizmor_image}} --pedantic --offline --config zizmor.yml .github
     run {{shellcheck_image}} scripts/*.sh
