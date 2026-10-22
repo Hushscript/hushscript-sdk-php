@@ -763,7 +763,8 @@ final class UploadRulesTest extends TestCase
             {
                 $this->sent++;
 
-                return Create::rejectionFor(new \RuntimeException('boom'));
+                // Guzzle's promise templates are invariant: a RejectedPromise<never, RuntimeException> is not a PromiseInterface<ResponseInterface, Throwable>.
+                return Create::rejectionFor(new \RuntimeException('boom')); // @phpstan-ignore return.type
             }
 
             #[\Override]

@@ -16,6 +16,7 @@ use Psr\Http\Message\ResponseInterface;
  */
 final class PartRun
 {
+    /** @var PromiseInterface<ResponseInterface, \Throwable>|null */
     public ?PromiseInterface $promise = null;
 
     /** The answer of the request in flight: a response, a failure, or null while it is still out. */

@@ -70,7 +70,7 @@ const stored = (target = sha, type = 'commit') => ({ref: `refs/tags/${tag}`, obj
 
 test('lint and ci enforce the release regressions in the pinned offline container', () => {
   const recipes = readFileSync(resolve(root, 'justfile'), 'utf8');
-  assert.match(recipes, /node_image := "node:22-bookworm-slim@sha256:c3de60bf2f9dd0ac6370e6117950ff62d6e339527e7472301c9c78a017978392"/);
+  assert.match(recipes, /node_image := "node:22-bookworm-slim@sha256:de170b39439eb0e5a3444ad7d60b015614a381e10fecae2e30ec9e735122f38d"/);
   const lint = recipes.split('lint version=floor:')[1].split('\n\n')[0];
   assert.match(lint, /run\(\) \{ docker run .*--network none/);
   assert.match(lint, /run --label codex.adhoc=1 \{\{node_image\}\} timeout 60 node --test scripts\/release-candidate.test.mjs/);

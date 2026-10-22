@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Hushscript\Tests;
 
 use GuzzleHttp\Exception\ConnectException;
-use GuzzleHttp\Exception\RequestException;
+use GuzzleHttp\Exception\NetworkException;
 use GuzzleHttp\Psr7\Request;
 use GuzzleHttp\Psr7\Response;
 use Hushscript\Client;
@@ -79,9 +79,9 @@ final class AgentTest extends TestCase
         return $fields;
     }
 
-    private static function lost(): RequestException
+    private static function lost(): NetworkException
     {
-        return new RequestException('cURL error 56: recv failure', new Request('POST', Rig::BASE.'/v1/agent/credentials/rotate'), null, null, ['errno' => 56, 'pretransfer_time' => 0.01]);
+        return new NetworkException('cURL error 56: recv failure', new Request('POST', Rig::BASE.'/v1/agent/credentials/rotate'));
     }
 
     private static function surface(\Throwable $error): string
@@ -498,7 +498,7 @@ final class AgentTest extends TestCase
 
     public function testAFailureBeforeTheClaimWasSentIsPlainNetworkErrorAndStillNotReplayed(): void
     {
-        $refused = new ConnectException('cURL error 7', new Request('POST', Rig::BASE.'/x'), null, ['errno' => 7, 'pretransfer_time' => 0.0]);
+        $refused = new ConnectException('cURL error 7', new Request('POST', Rig::BASE.'/x'));
         $http = new FakeHttp([$refused, FakeHttp::json(200, self::claimed())]);
 
         $this->expectException(NetworkError::class);
@@ -603,7 +603,7 @@ final class AgentTest extends TestCase
 
     public function testAForeignErrorQuotingTheClaimSecretAndASignedUrlShowsNeither(): void
     {
-        foreach ([new \TypeError('bad cs_secret_0123456789ab at https://r2.example.com/b/1?X-Amz-Signature=SIG'), new ConnectException('bad cs_secret_0123456789ab at https://r2.example.com/b/1?X-Amz-Signature=SIG', new Request('POST', Rig::BASE.'/v1/agent/accounts/sg_1/claim'))] as $failure) {
+        foreach ([new \TypeError('bad cs_secret_0123456789ab at https://r2.example.com/b/1?X-Amz-Signature=SIG'), new NetworkException('bad cs_secret_0123456789ab at https://r2.example.com/b/1?X-Amz-Signature=SIG', new Request('POST', Rig::BASE.'/v1/agent/accounts/sg_1/claim'))] as $failure) {
             $http = new FakeHttp([$failure]);
 
             try {

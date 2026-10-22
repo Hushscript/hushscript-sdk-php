@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Hushscript\Http;
 
 use GuzzleHttp\ClientInterface as GuzzleClientInterface;
+use GuzzleHttp\Exception\ConnectException;
+use GuzzleHttp\Exception\TransferException;
 use GuzzleHttp\Psr7\Utils;
 use Hushscript\Clock;
 use Hushscript\Credentials;
@@ -30,10 +32,10 @@ final class RetryMiddleware implements ClientInterface
 {
     private const MAX_KEY_PEEK_BYTES = 1 << 20;
 
-    // Cannot have written the request: DNS, connect and TLS handshake or certificate failures.
+    // Cannot have written the request: DNS, connect and TLS handshake or certificate failures. Guzzle 8 raises most of
+    // them as a ConnectException; the local TLS setup codes (engine, certificate, cipher, CA bundle) it leaves as a plain
+    // RequestException whose message still names the cURL error.
     private const NOT_SENT_ERRNOS = [5, 6, 7, 35, 51, 53, 54, 58, 59, 60, 64, 66, 77, 83];
-
-    private const CURLE_OPERATION_TIMEDOUT = 28;
 
     // The values of cURL's CURLOPT_FRESH_CONNECT and CURLOPT_FORBID_REUSE, spelled out so the package needs no ext-curl.
     private const CURLOPT_FRESH_CONNECT = 74;
@@ -237,9 +239,12 @@ final class RetryMiddleware implements ClientInterface
      */
     private static function configuredCurl(GuzzleClientInterface $client): array
     {
-        // getConfig() is deprecated in Guzzle 7 but is the only way to read a client's defaults; the option
-        // is read once per non-replayable request.
-        $curl = $client->getConfig('curl'); // @phpstan-ignore method.deprecated
+        // getConfig() is on Guzzle's Client but no longer on its interface; a client without it has no defaults to
+        // carry over. The option is read once per non-replayable request.
+        if (! method_exists($client, 'getConfig')) {
+            return [];
+        }
+        $curl = $client->getConfig('curl');
 
         return is_array($curl) ? $curl : [];
     }
@@ -303,29 +308,21 @@ final class RetryMiddleware implements ClientInterface
     }
 
     /**
-     * Spec 7.4: only connection setup (DNS, connect, TLS handshake) counts as not sent; any error
-     * after the body was written is "sent", whatever its code. A custom client's errors are sent
-     * unless they carry a cURL errno that proves otherwise.
+     * Spec 7.4: only connection setup (DNS, connect, TLS handshake, including their timeouts) counts as not
+     * sent; any error after the body was written is "sent", whatever its code. Guzzle's built-in handlers raise
+     * setup failures as a ConnectException (a ConnectTimeoutException for a timeout before the transfer began, a
+     * NetworkTimeoutException for any later one). A custom client's errors are sent unless they are Guzzle's and
+     * name a cURL setup error.
      */
     private static function provablyNotSent(#[\SensitiveParameter] \Throwable $failure): bool
     {
-        if (! method_exists($failure, 'getHandlerContext')) {
-            return false;
-        }
-        $context = $failure->getHandlerContext();
-        if (! is_array($context)) {
-            return false;
-        }
-        $errno = $context['errno'] ?? null;
-        if (! is_int($errno)) {
-            return false;
-        }
-        if (in_array($errno, self::NOT_SENT_ERRNOS, true)) {
+        if ($failure instanceof ConnectException) {
             return true;
         }
-        // A timeout is setup only while the transfer had not begun: pretransfer is the point where
-        // connection and TLS are done and the request is about to go out.
-        return $errno === self::CURLE_OPERATION_TIMEDOUT && ($context['pretransfer_time'] ?? null) === 0.0;
+
+        return $failure instanceof TransferException
+            && preg_match('/^cURL error (\d+):/', $failure->getMessage(), $match) === 1
+            && in_array((int) $match[1], self::NOT_SENT_ERRNOS, true);
     }
 
     private function hasIdempotencyKey(#[\SensitiveParameter] RequestInterface $request): bool
