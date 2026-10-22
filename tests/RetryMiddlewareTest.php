@@ -5,7 +5,11 @@ declare(strict_types=1);
 namespace Hushscript\Tests;
 
 use GuzzleHttp\Exception\ConnectException;
+use GuzzleHttp\Exception\ConnectTimeoutException;
+use GuzzleHttp\Exception\NetworkException;
+use GuzzleHttp\Exception\NetworkTimeoutException;
 use GuzzleHttp\Exception\RequestException;
+use GuzzleHttp\Exception\TransferException;
 use GuzzleHttp\Psr7\NoSeekStream;
 use GuzzleHttp\Psr7\Request;
 use GuzzleHttp\Psr7\Response;
@@ -30,14 +34,29 @@ final class RetryMiddlewareTest extends TestCase
 {
     private const KEY = '0123456789abcdef0123456789abcdef';
 
-    private static function connectFailure(int $errno = 7, float $pretransfer = 0.0): ConnectException
+    private static function connectFailure(int $errno = 7): ConnectException
     {
-        return new ConnectException('cURL error '.$errno, new Request('GET', Rig::BASE.'/v1/account'), null, ['errno' => $errno, 'pretransfer_time' => $pretransfer]);
+        return new ConnectException('cURL error '.$errno.': connection setup failed', new Request('GET', Rig::BASE.'/v1/account'));
     }
 
-    private static function lostResponse(): RequestException
+    private static function connectTimeout(): ConnectTimeoutException
     {
-        return new RequestException('cURL error 56: recv failure', new Request('GET', Rig::BASE.'/v1/account'), null, null, ['errno' => 56, 'pretransfer_time' => 0.01]);
+        return new ConnectTimeoutException('cURL error 28: connection timed out', new Request('GET', Rig::BASE.'/v1/account'));
+    }
+
+    private static function networkTimeout(): NetworkTimeoutException
+    {
+        return new NetworkTimeoutException('cURL error 28: operation timed out', new Request('GET', Rig::BASE.'/v1/account'));
+    }
+
+    private static function networkFailure(int $errno): NetworkException
+    {
+        return new NetworkException('cURL error '.$errno.': no answer', new Request('GET', Rig::BASE.'/v1/account'));
+    }
+
+    private static function lostResponse(): NetworkException
+    {
+        return new NetworkException('cURL error 56: recv failure', new Request('GET', Rig::BASE.'/v1/account'));
     }
 
     /** @param array<string, mixed>|string $body */
@@ -466,7 +485,7 @@ final class RetryMiddlewareTest extends TestCase
     /** @return iterable<string, array{\Closure(): \Throwable}> factories, as for unexpectedFailures() */
     public static function transportFailures(): iterable
     {
-        yield 'PSR network' => [static fn (): \Throwable => new ConnectException('boom '.Tokens::TEST, new Request('GET', Rig::BASE.'/v1/account'), null, ['errno' => 7])];
+        yield 'PSR network' => [static fn (): \Throwable => new ConnectException('boom '.Tokens::TEST, new Request('GET', Rig::BASE.'/v1/account'))];
         yield 'PSR request' => [static fn (): \Throwable => new RequestException('boom '.Tokens::TEST, new Request('GET', Rig::BASE.'/v1/account'))];
     }
 
@@ -493,7 +512,7 @@ final class RetryMiddlewareTest extends TestCase
                 self::assertSame('network_error', $error->errorCode);
                 self::assertNull($error->status);
                 self::assertNull($error->numericCode);
-                // errno 7 proves the connection was never made; a bare RequestException proves nothing (R100).
+                // A ConnectException proves the connection was never made; a bare RequestException proves nothing (R100).
                 $lead = $failure instanceof ConnectException ? 'Could not reach the Hushscript API: GET /v1/account; it failed before the request was sent. ' : 'Could not reach the Hushscript API: GET /v1/account. ';
                 self::assertSame($lead.$summary, $error->getMessage());
                 self::assertSame($failure instanceof ConnectException, \Hushscript\Http\Unsent::has($error));
@@ -612,11 +631,11 @@ final class RetryMiddlewareTest extends TestCase
         } catch (OutcomeUnknownError $error) {
             self::assertNull($error->status);
             self::assertNull($error->numericCode);
-            self::assertSame('No response arrived for POST '.$path.'. GuzzleHttp\\Exception\\RequestException: cURL error 56: recv failure', $error->getMessage());
+            self::assertSame('No response arrived for POST '.$path.'. GuzzleHttp\\Exception\\NetworkException: cURL error 56: recv failure', $error->getMessage());
             $cause = $error->getPrevious();
             self::assertNotNull($cause);
             self::assertSame(\RuntimeException::class, $cause::class);
-            self::assertSame('GuzzleHttp\\Exception\\RequestException: cURL error 56: recv failure', $cause->getMessage());
+            self::assertSame('GuzzleHttp\\Exception\\NetworkException: cURL error 56: recv failure', $cause->getMessage());
             self::assertNull($cause->getPrevious());
             self::assertSame($hint, $error->hint);
             self::assertSame('outcome_unknown', $error->errorCode);
@@ -628,7 +647,7 @@ final class RetryMiddlewareTest extends TestCase
     #[DataProvider('neverRoutes')]
     public function testATimeoutAfterTheBodyWasWrittenIsAnUnknownOutcome(string $path, ?string $hint): void
     {
-        $http = new FakeHttp([self::connectFailure(28, 0.02), self::ok()]);
+        $http = new FakeHttp([self::networkTimeout(), self::ok()]);
         $rig = new Rig($http);
         try {
             $rig->api->request('POST', $path, body: []);
@@ -727,8 +746,8 @@ final class RetryMiddlewareTest extends TestCase
 
     public function testNotSentWithoutAConnectErrnoMeansSent(): void
     {
-        // errno 28 with a started transfer, errno 52 (empty reply), and an unrelated errno: all after the write.
-        foreach ([self::connectFailure(28, 0.5), self::connectFailure(52, 0.5), self::lostResponse()] as $failure) {
+        // A timeout once the transfer began, an empty reply (cURL error 52), a lost answer and a failure that names no setup error: all after the write.
+        foreach ([self::networkTimeout(), self::networkFailure(52), self::lostResponse(), new RequestException('cURL error 61: bad content encoding', new Request('POST', Rig::BASE.'/v1/org/members'))] as $failure) {
             $http = new FakeHttp([$failure, self::ok()]);
             $rig = new Rig($http);
 
@@ -741,19 +760,26 @@ final class RetryMiddlewareTest extends TestCase
         }
     }
 
-    /** @return iterable<string, array{int}> */
+    /** @return iterable<string, array{int, class-string<TransferException>}> the class Guzzle 8 raises for each setup error */
     public static function setupErrnos(): iterable
     {
-        foreach ([5 => 'proxy dns', 6 => 'dns', 7 => 'connect', 35 => 'tls', 51 => 'peer cert', 58 => 'cert problem', 59 => 'cipher', 60 => 'cacert', 77 => 'cacert file', 83 => 'issuer'] as $errno => $name) {
-            yield $name => [$errno];
-        }
+        yield 'proxy dns' => [5, ConnectException::class];
+        yield 'dns' => [6, ConnectException::class];
+        yield 'connect' => [7, ConnectException::class];
+        yield 'tls' => [35, ConnectException::class];
+        yield 'peer cert' => [51, ConnectException::class];
+        yield 'cert problem' => [58, RequestException::class];
+        yield 'cipher' => [59, RequestException::class];
+        yield 'cacert' => [60, ConnectException::class];
+        yield 'cacert file' => [77, RequestException::class];
+        yield 'issuer' => [83, ConnectException::class];
     }
 
+    /** @param class-string<TransferException> $class */
     #[DataProvider('setupErrnos')]
-    public function testConnectionSetupErrnosCountAsNotSent(int $errno): void
+    public function testConnectionSetupErrnosCountAsNotSent(int $errno, string $class): void
     {
-        // A plain RequestException (not a ConnectException) carries errno 60 and friends in Guzzle.
-        $failure = new RequestException('setup', new Request('POST', Rig::BASE.'/v1/org/members'), null, null, ['errno' => $errno]);
+        $failure = new $class('cURL error '.$errno.': setup', new Request('POST', Rig::BASE.'/v1/org/members'));
         $http = new FakeHttp([$failure, self::ok()]);
         $rig = new Rig($http);
 
@@ -764,7 +790,7 @@ final class RetryMiddlewareTest extends TestCase
 
     public function testATimeoutBeforeTheTransferBeganCountsAsNotSent(): void
     {
-        $http = new FakeHttp([self::connectFailure(28, 0.0), self::ok()]);
+        $http = new FakeHttp([self::connectTimeout(), self::ok()]);
         $rig = new Rig($http);
 
         $rig->api->request('POST', '/v1/org/members', body: ['x' => 1]);
@@ -1327,10 +1353,10 @@ final class RetryMiddlewareTest extends TestCase
     }
 
     /** @return iterable<string, array{\Throwable}> */
-    public static function failuresWithoutAnErrno(): iterable
+    public static function failuresThatProveNothing(): iterable
     {
         $request = new Request('POST', Rig::BASE.'/v1/agent/accounts/sg_1/claim');
-        yield 'no handler context' => [new class ('reset', $request) extends \RuntimeException implements \Psr\Http\Client\NetworkExceptionInterface {
+        yield 'a foreign exception with no cURL error' => [new class ('reset', $request) extends \RuntimeException implements \Psr\Http\Client\NetworkExceptionInterface {
             public function __construct(string $message, private readonly \Psr\Http\Message\RequestInterface $request)
             {
                 parent::__construct($message);
@@ -1341,7 +1367,7 @@ final class RetryMiddlewareTest extends TestCase
                 return $this->request;
             }
         }];
-        yield 'a handler context that is not an array' => [new class ('reset', $request) extends \RuntimeException implements \Psr\Http\Client\NetworkExceptionInterface {
+        yield 'a foreign exception that only names a setup error' => [new class ('cURL error 7: refused', $request) extends \RuntimeException implements \Psr\Http\Client\NetworkExceptionInterface {
             public function __construct(string $message, private readonly \Psr\Http\Message\RequestInterface $request)
             {
                 parent::__construct($message);
@@ -1351,16 +1377,12 @@ final class RetryMiddlewareTest extends TestCase
             {
                 return $this->request;
             }
-
-            public function getHandlerContext(): string
-            {
-                return 'errno=7';
-            }
         }];
+        yield 'a Guzzle failure that names no setup error' => [new RequestException('cURL error 56: recv failure', $request)];
     }
 
-    #[DataProvider('failuresWithoutAnErrno')]
-    public function testANetworkFailureWithoutAnErrnoCountsAsSent(\Throwable $failure): void
+    #[DataProvider('failuresThatProveNothing')]
+    public function testAFailureThatDoesNotProveNonDeliveryCountsAsSent(\Throwable $failure): void
     {
         $http = new FakeHttp([$failure]);
         $rig = new Rig($http);

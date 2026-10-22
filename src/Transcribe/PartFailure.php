@@ -18,9 +18,7 @@ final class PartFailure extends \RuntimeException
 
     public static function of(#[\SensitiveParameter] \Throwable $failure): self
     {
-        $context = method_exists($failure, 'getHandlerContext') ? $failure->getHandlerContext() : [];
-        $errno = is_array($context) && is_int($context['errno'] ?? null) ? ' (errno '.$context['errno'].')' : '';
-        $part = new self(Redact::text($failure::class.': '.$failure->getMessage()).$errno);
+        $part = new self(Redact::text($failure::class.': '.$failure->getMessage()));
         $part->transport = $failure instanceof NetworkExceptionInterface || $failure instanceof RequestExceptionInterface;
 
         return $part;

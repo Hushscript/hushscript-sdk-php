@@ -694,7 +694,7 @@ final class PipelineTest extends TestCase
     {
         $harness = new PipelineHarness();
         $harness->api->on('POST', '/v1/uploads', [
-            new \GuzzleHttp\Exception\RequestException('lost', new \GuzzleHttp\Psr7\Request('POST', PipelineHarness::BASE.'/v1/uploads'), null, null, ['errno' => 56]),
+            new \GuzzleHttp\Exception\NetworkException('cURL error 56: lost', new \GuzzleHttp\Psr7\Request('POST', PipelineHarness::BASE.'/v1/uploads')),
             PipelineHarness::json(200, $harness->createBody()),
         ]);
 

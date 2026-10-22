@@ -85,7 +85,6 @@ final class PartTransportTest extends TestCase
         foreach ($promises as $body => $promise) {
             self::assertSame(PromiseInterface::FULFILLED, $promise->getState());
             $response = $promise->wait();
-            self::assertInstanceOf(ResponseInterface::class, $response);
             self::assertSame(200, $response->getStatusCode());
             self::assertSame('"etag-'.$body.'"', $response->getHeaderLine('ETag'));
         }
@@ -122,7 +121,7 @@ final class PartTransportTest extends TestCase
     {
         $request = new Request('PUT', 'https://r2.example.com/b/1?X-Amz-Signature=SECRET');
         $cases = [
-            [new \GuzzleHttp\Exception\ConnectException('cURL error 7: refused for https://r2.example.com/b/1?X-Amz-Signature=SECRET', $request, null, ['errno' => 7]), true, 'GuzzleHttp\\Exception\\ConnectException: cURL error 7: refused for https://r2.example.com/b/1?[redacted] (errno 7)'],
+            [new \GuzzleHttp\Exception\ConnectException('cURL error 7: refused for https://r2.example.com/b/1?X-Amz-Signature=SECRET', $request), true, 'GuzzleHttp\\Exception\\ConnectException: cURL error 7: refused for https://r2.example.com/b/1?[redacted]'],
             [new \GuzzleHttp\Exception\RequestException('reset', $request), true, 'GuzzleHttp\\Exception\\RequestException: reset'],
             [new \TypeError('boom at https://r2.example.com/b/1?X-Amz-Signature=SECRET'), false, 'TypeError: boom at https://r2.example.com/b/1?[redacted]'],
             [new \RuntimeException(''), false, 'RuntimeException: '],
@@ -146,11 +145,13 @@ final class PartTransportTest extends TestCase
     public function testTheSyncTransportHandsThePartTimeoutToAGuzzleClient(): void
     {
         $seen = [];
-        $client = new GuzzleClient(['handler' => static function (\Psr\Http\Message\RequestInterface $request, array $options) use (&$seen): PromiseInterface {
+        $handler = static function (\Psr\Http\Message\RequestInterface $request, array $options) use (&$seen): PromiseInterface {
             $seen = $options;
 
             return \GuzzleHttp\Promise\Create::promiseFor(new \GuzzleHttp\Psr7\Response(200));
-        }]);
+        };
+        // Guzzle's template is invariant: a fulfilled promise of a concrete Response is not PromiseInterface<ResponseInterface, mixed>.
+        $client = new GuzzleClient(['handler' => \GuzzleHttp\HandlerStack::create($handler)]); // @phpstan-ignore argument.type
 
         (new SyncTransport($client))->send(new Request('PUT', 'http://127.0.0.1:1/part'), 300.0);
 

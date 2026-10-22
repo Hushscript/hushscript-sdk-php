@@ -511,7 +511,7 @@ minutes of the recording; medical mode and each translation target use more. Cur
 ## Requirements
 
 - PHP 8.2 or newer, with `ext-json` and `ext-mbstring`; CI tests PHP 8.2, 8.3, 8.4 and 8.5
-- `guzzlehttp/guzzle` ^7 and `james-heinrich/getid3` (installed by Composer)
+- `guzzlehttp/guzzle` ^8 and `james-heinrich/getid3` (installed by Composer)
 - `ext-curl` for concurrent part uploads (without it, or with a client of your own, parts go one at a time)
 
 ## Links

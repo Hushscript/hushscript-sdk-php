@@ -10,6 +10,7 @@ use GuzzleHttp\HandlerStack;
 use GuzzleHttp\Promise\PromiseInterface;
 use GuzzleHttp\Promise\Utils;
 use Psr\Http\Message\RequestInterface;
+use Psr\Http\Message\ResponseInterface;
 
 /**
  * Concurrent part requests over one cURL multi handle that the upload loop steps itself, so it can
@@ -43,7 +44,11 @@ final class GuzzleMultiTransport implements PartTransport
     #[\Override]
     public function send(#[\SensitiveParameter] RequestInterface $request, float $timeout): PromiseInterface
     {
-        return $this->client->sendAsync($request, ['timeout' => $timeout])
+        // Guzzle's handlers reject with a Throwable only; its generic type says mixed.
+        /** @var PromiseInterface<ResponseInterface, \Throwable> $sent */
+        $sent = $this->client->sendAsync($request, ['timeout' => $timeout]);
+
+        return $sent
             ->then(null, static function (#[\SensitiveParameter] \Throwable $failure): never {
                 throw PartFailure::of($failure);
             });

@@ -10,6 +10,7 @@ use GuzzleHttp\Promise\PromiseInterface;
 use GuzzleHttp\Promise\Utils;
 use Psr\Http\Client\ClientInterface;
 use Psr\Http\Message\RequestInterface;
+use Psr\Http\Message\ResponseInterface;
 
 /**
  * Part requests over any PSR-18 client, one at a time: each request is finished before `send`
@@ -29,10 +30,15 @@ final class SyncTransport implements PartTransport
                 ? $this->client->send($request, ['timeout' => $timeout, 'allow_redirects' => false, 'http_errors' => false])
                 : $this->client->sendRequest($request);
         } catch (\Throwable $failure) {
-            return Create::rejectionFor(PartFailure::of($failure));
+            // The promise template types are invariant, so a RejectedPromise<never, PartFailure> does not pass as the
+            // declared PromiseInterface<ResponseInterface, Throwable>.
+            return Create::rejectionFor(PartFailure::of($failure)); // @phpstan-ignore return.type
         }
 
-        return Create::promiseFor($response);
+        /** @var PromiseInterface<ResponseInterface, \Throwable> $fulfilled */
+        $fulfilled = Create::promiseFor($response);
+
+        return $fulfilled;
     }
 
     #[\Override]

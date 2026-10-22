@@ -22,7 +22,7 @@ final class FakePartTransport implements PartTransport
     /** @var list<array{method: string, url: string, authorization: string, length: int, timeout: float, headers: array<mixed>}> */
     public array $sent = [];
 
-    /** @var array<int, array{Promise, float, ResponseInterface|PartFailure}> */
+    /** @var array<int, array{Promise<ResponseInterface, \Throwable>, float, ResponseInterface|PartFailure}> */
     private array $pending = [];
 
     public int $cancelled = 0;
@@ -53,6 +53,7 @@ final class FakePartTransport implements PartTransport
         LoopGuard::check($index + 1);
         $this->sent[] = $record;
         [$answer, $hold] = ($this->script)($record, $index);
+        /** @var Promise<ResponseInterface, \Throwable> $promise */
         $promise = new Promise(null, function (): void {
             $this->cancelled++;
         });

@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Hushscript\Tests;
 
 use GuzzleHttp\Exception\ConnectException;
-use GuzzleHttp\Exception\RequestException;
+use GuzzleHttp\Exception\NetworkException;
 use GuzzleHttp\Psr7\Request;
 use Hushscript\Client;
 use Hushscript\Config;
@@ -139,7 +139,7 @@ final class RedactionTest extends TestCase
     public function testAFailedClaimNeverShowsItsSecretInAnyRepresentationOfTheError(): void
     {
         $secret = 'cs_9f8e7d6c5b4a39281706f5e4d3c2b1a0';
-        $lost = new RequestException('cURL error 56: recv failure', new Request('POST', Rig::BASE.'/v1/agent/accounts/acc_1/claim'), null, null, ['errno' => 56, 'pretransfer_time' => 0.01]);
+        $lost = new NetworkException('cURL error 56: recv failure', new Request('POST', Rig::BASE.'/v1/agent/accounts/acc_1/claim'));
         $rig = new Rig(new FakeHttp([$lost]));
 
         try {
@@ -232,7 +232,7 @@ final class RedactionTest extends TestCase
     public function testATransportFailureWithTheTokenInItsMessageAndRequestIsSanitized(): void
     {
         $echoing = static function (\Psr\Http\Message\RequestInterface $request): never {
-            throw new ConnectException('boom '.Tokens::TEST.' '.$request->getHeaderLine('Authorization'), $request->withHeader('Authorization', 'Bearer '.Tokens::TEST), null, ['errno' => 7]);
+            throw new ConnectException('boom '.Tokens::TEST.' '.$request->getHeaderLine('Authorization'), $request->withHeader('Authorization', 'Bearer '.Tokens::TEST));
         };
         $http = new FakeHttp([$echoing, $echoing, $echoing, $echoing]);
         $rig = new Rig($http);

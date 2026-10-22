@@ -18,12 +18,12 @@
         "php": "^8.2",
         "ext-json": "*",
         "ext-mbstring": "*",
-        "guzzlehttp/guzzle": "^7.16.0",
-        "guzzlehttp/promises": "^2.6.0",
-        "guzzlehttp/psr7": "^2.13.2",
+        "guzzlehttp/guzzle": "^8.3.0",
+        "guzzlehttp/promises": "^3.1.0",
+        "guzzlehttp/psr7": "^3.2.0",
         "james-heinrich/getid3": "^1.9.27",
         "psr/http-client": "^1.0.3",
-        "psr/http-message": "^1.1 || ^2.0"
+        "psr/http-message": "^2.0"
     },
     "suggest": {
         "ext-curl": "Concurrent part uploads; without it, parts go one at a time"
