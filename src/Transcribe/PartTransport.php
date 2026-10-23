@@ -6,6 +6,7 @@ namespace Hushscript\Transcribe;
 
 use GuzzleHttp\Promise\PromiseInterface;
 use Psr\Http\Message\RequestInterface;
+use Psr\Http\Message\ResponseInterface;
 
 /**
  * How part requests leave the machine. The upload loop owns concurrency, retries and time; the
@@ -19,6 +20,8 @@ interface PartTransport
     /**
      * Starts the request without waiting for it. The promise fulfils with the response whatever its
      * status, or rejects with a PartFailure.
+     *
+     * @return PromiseInterface<ResponseInterface, \Throwable>
      */
     public function send(#[\SensitiveParameter] RequestInterface $request, float $timeout): PromiseInterface;
 

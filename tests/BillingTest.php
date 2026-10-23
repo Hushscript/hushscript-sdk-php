@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Hushscript\Tests;
 
 use GuzzleHttp\Exception\ConnectException;
-use GuzzleHttp\Exception\RequestException;
+use GuzzleHttp\Exception\NetworkException;
 use GuzzleHttp\Psr7\Request;
 use Hushscript\Client;
 use Hushscript\Exception\ApiError;
@@ -475,7 +475,7 @@ final class BillingTest extends TestCase
 
     public function testALostResponseAfterTheRetryIsANetworkErrorCarryingTheKey(): void
     {
-        $lost = static fn (): RequestException => new RequestException('cURL error 56', new Request('POST', Rig::BASE.'/v1/billing/purchase'), null, null, ['errno' => 56, 'pretransfer_time' => 0.01]);
+        $lost = static fn (): NetworkException => new NetworkException('cURL error 56', new Request('POST', Rig::BASE.'/v1/billing/purchase'));
         $http = new FakeHttp([self::cards('pm_1', [self::card('pm_1', true)]), $lost(), $lost()]);
 
         try {
@@ -494,7 +494,7 @@ final class BillingTest extends TestCase
 
     private static function refused(): ConnectException
     {
-        return new ConnectException('cURL error 7', new Request('POST', Rig::BASE.'/v1/billing/purchase'), null, ['errno' => 7, 'pretransfer_time' => 0.0]);
+        return new ConnectException('cURL error 7', new Request('POST', Rig::BASE.'/v1/billing/purchase'));
     }
 
     // R103: a purchase that provably never left charged nothing, so it carries no key and says so.
@@ -517,7 +517,7 @@ final class BillingTest extends TestCase
 
     public function testAPurchaseWhoseFirstAttemptMayHaveLeftKeepsTheKeyWhateverTheLastFailure(): void
     {
-        $lost = new RequestException('cURL error 56', new Request('POST', Rig::BASE.'/v1/billing/purchase'), null, null, ['errno' => 56, 'pretransfer_time' => 0.01]);
+        $lost = new NetworkException('cURL error 56', new Request('POST', Rig::BASE.'/v1/billing/purchase'));
         $http = new FakeHttp([self::cards('pm_1', [self::card('pm_1', true)]), $lost, self::refused()]);
 
         try {

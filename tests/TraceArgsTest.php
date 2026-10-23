@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Hushscript\Tests;
 
-use GuzzleHttp\Exception\ConnectException;
+use GuzzleHttp\Exception\NetworkException;
 use GuzzleHttp\Psr7\Request;
 use Hushscript\Client;
 use Hushscript\Exception\ApiError;
@@ -113,7 +113,7 @@ final class TraceArgsTest extends TestCase
     private static function echoing(): \Closure
     {
         return static function (RequestInterface $request): never {
-            throw new ConnectException('cURL error 7: failed for '.$request->getUri().' '.$request->getHeaderLine('Authorization').' '.$request->getBody(), $request, null, ['errno' => 56]);
+            throw new NetworkException('cURL error 56: failed for '.$request->getUri().' '.$request->getHeaderLine('Authorization').' '.$request->getBody(), $request);
         };
     }
 
@@ -200,7 +200,7 @@ final class TraceArgsTest extends TestCase
             #[\Override]
             public function sendRequest(RequestInterface $request): ResponseInterface
             {
-                throw new ConnectException('cURL error 56: reset for '.$request->getUri(), new Request('PUT', $request->getUri()), null, ['errno' => 56]);
+                throw new NetworkException('cURL error 56: reset for '.$request->getUri(), new Request('PUT', $request->getUri()));
             }
         };
         $harness = new PipelineHarness(transport: new SyncTransport($storage), maxRetries: 0);

@@ -13,6 +13,7 @@ final readonly class Account
     /**
      * @param  int  $balanceSeconds  net of holds and clawback debt; may be negative
      * @param  int  $heldSeconds  committed to in-flight jobs, and already deducted from `balanceSeconds`
+     * @param  ?\DateTimeImmutable  $creditsExpireAt  always null; minutes do not expire
      * @param  string  $dataRegion  for example `us`, `eu`, `apac` or `oc`
      * @param  ?int  $purchasesRemainingInWindow  agent accounts only, else null
      */

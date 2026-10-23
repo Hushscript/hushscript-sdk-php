@@ -14,6 +14,7 @@ final readonly class Balance
      * @param  int  $seconds  spendable now, already net of holds (not "balance minus held"); may be negative (clawback debt)
      * @param  int  $minutes  `seconds / 60`, rounded toward zero
      * @param  int  $heldSeconds  committed to in-flight jobs, and already deducted from `seconds`
+     * @param  ?\DateTimeImmutable  $expiresAt  always null; minutes do not expire
      * @param  ?int  $purchasesRemaining  agent accounts only, else null
      */
     private function __construct(
