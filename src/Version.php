@@ -6,5 +6,5 @@ namespace Hushscript;
 
 final class Version
 {
-    public const SDK = '1.1.0'; // x-release-please-version
+    public const SDK = '1.2.0'; // x-release-please-version
 }
