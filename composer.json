@@ -18,10 +18,10 @@
         "php": "^8.2",
         "ext-json": "*",
         "ext-mbstring": "*",
-        "guzzlehttp/guzzle": "^8.3.0",
+        "guzzlehttp/guzzle": "^8.3.1",
         "guzzlehttp/promises": "^3.1.0",
         "guzzlehttp/psr7": "^3.2.0",
-        "james-heinrich/getid3": "^1.9.27",
+        "james-heinrich/getid3": "^1.9.28",
         "psr/http-client": "^1.0.3",
         "psr/http-message": "^2.0"
     },
@@ -33,14 +33,14 @@
         "ext-xdebug": "^3.5.3",
         "infection/infection": "^0.32.6",
         "laravel/pint": "^1.30.4",
-        "phpstan/phpstan": "^2.3.1",
+        "phpstan/phpstan": "^2.3.4",
         "phpstan/phpstan-deprecation-rules": "^2.0.5",
         "phpstan/phpstan-phpunit": "^2.1.1",
         "phpstan/phpstan-strict-rules": "^2.1.0",
         "phpunit/php-code-coverage": "^11.0.12",
         "phpunit/phpunit": "^11.5.57",
         "shipmonk/composer-dependency-analyser": "^1.8.4",
-        "vimeo/psalm": "^6.20.1"
+        "vimeo/psalm": "^6.20.4"
     },
     "autoload": {
         "psr-4": {
