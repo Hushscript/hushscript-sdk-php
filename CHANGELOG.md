@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.1.1](https://github.com/Hushscript/hushscript-sdk-php/compare/v1.1.0...v1.1.1) (2026-10-31)
+
+
+### Bug Fixes
+
+* **deps:** update dependencies to latest ([4e6fba4](https://github.com/Hushscript/hushscript-sdk-php/commit/4e6fba404e54fb8e1615c1ae8a1e1b9c1f5703f0))
+
+
+### Miscellaneous Chores
+
+* promote develop to main ([416d463](https://github.com/Hushscript/hushscript-sdk-php/commit/416d463c5a11d6cbf3181ef263ca986ec783e143))
+
 ## [1.1.0](https://github.com/Hushscript/hushscript-sdk-php/compare/v1.0.0...v1.1.0) (2026-10-23)
 
 
