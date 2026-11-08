@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.1.2](https://github.com/Hushscript/hushscript-sdk-php/compare/v1.1.1...v1.1.2) (2026-11-08)
+
+
+### Miscellaneous Chores
+
+* promote develop to main ([529a817](https://github.com/Hushscript/hushscript-sdk-php/commit/529a81791b8f67c4f1871a003a591b07e4716817))
+
 ## [1.1.1](https://github.com/Hushscript/hushscript-sdk-php/compare/v1.1.0...v1.1.1) (2026-10-31)
 
 
