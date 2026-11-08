@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-// Nightly smoke against production: one authenticated read. HUSHSCRIPT_TOKEN and HUSHSCRIPT_BASE_URL come from the environment.
+// Production smoke on the promotion PR: one authenticated read. HUSHSCRIPT_TOKEN and HUSHSCRIPT_BASE_URL come from the environment.
 
 require __DIR__.'/../vendor/autoload.php';
 
