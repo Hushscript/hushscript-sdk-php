@@ -68,7 +68,7 @@ services:
         vendor/bin/phpunit --coverage-php /tmp/coverage.php
         && php scripts/check-coverage.php /tmp/coverage.php 90 85
 
-  # Infection on the HTTP core and transcribe pipeline (nightly).
+  # Infection on the HTTP core and transcribe pipeline (promotion PR).
   mutation:
     <<: *sandboxed
     user: "${HOST_UID:-10001}:${HOST_GID:-10001}"
@@ -119,7 +119,7 @@ services:
       - ./src/Generated:/work/src/Generated
     command: ["timeout", "600", "php", "scripts/generate.php"]
 
-  # Outbound network: the one test that talks to production. Nightly only.
+  # Outbound network: the one test that talks to production. Promotion PR only.
   smoke:
     <<: *dev
     tmpfs: *scratch
