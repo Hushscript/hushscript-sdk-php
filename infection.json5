@@ -1,6 +1,6 @@
 {
     "$schema": "vendor/infection/infection/resources/schema.json",
-    // Nightly, not on PRs (spec 13.2): the HTTP core and the transcribe pipeline.
+    // Only on the develop-to-main promotion PR (spec 13.2): the HTTP core and the transcribe pipeline.
     "source": {
         "directories": ["src/Http", "src/Transcribe"]
     },

@@ -33,7 +33,7 @@ test version=floor:
     docker compose build mock test
     docker compose run --rm test
 
-# Infection on the HTTP core and transcribe pipeline (nightly)
+# Infection on the HTTP core and transcribe pipeline (promotion PR)
 mutation version=floor:
     #!/usr/bin/env bash
     set -euo pipefail
@@ -141,7 +141,7 @@ ci version="":
       just build "$v"
     done
 
-# nightly smoke against production; needs SMOKE_TOKEN (outbound network)
+# production smoke (promotion PR); needs SMOKE_TOKEN (outbound network)
 smoke:
     #!/usr/bin/env bash
     set -euo pipefail

@@ -1,19 +1,20 @@
-name: nightly
+name: promotion
 
 on:
-  schedule:
-    - cron: "37 2 * * *"
+  pull_request:
+    branches: [main]
   workflow_dispatch:
 
 permissions: {}
 
 concurrency:
-  group: nightly
+  group: promotion-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
   mutation:
     name: mutation (infection)
+    if: github.event_name == 'workflow_dispatch' || github.head_ref == 'develop'
     runs-on: ubuntu-26.04
     timeout-minutes: 60
     permissions:
@@ -50,8 +51,8 @@ jobs:
 
   smoke:
     name: smoke (production)
+    if: github.event_name == 'workflow_dispatch' || github.head_ref == 'develop'
     # The smoke environment admits main only; main becomes the default branch at release.
-    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-26.04
     timeout-minutes: 15
     environment: smoke
