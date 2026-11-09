@@ -55,7 +55,7 @@ class HushscriptException extends \RuntimeException
         $this->status = $status;
         $this->details = $details;
         $this->retryAfter = $retryAfter;
-        if ($hint === null && static::AUTO_HINT) {
+        if ($hint === null && static::AUTO_HINT === true) {
             $hint = Hint::render($this->errorCode, $details, $retryAfter, $scope);
         }
         $this->hint = $hint === null || $hint === '' ? null : Redact::text($hint);
