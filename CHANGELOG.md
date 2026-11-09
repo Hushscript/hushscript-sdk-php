@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.1.3](https://github.com/Hushscript/hushscript-sdk-php/compare/v1.1.2...v1.1.3) (2026-11-09)
+
+
+### Miscellaneous Chores
+
+* **deps-dev:** bump phpstan/phpstan-strict-rules to 2.1.1, compare the auto-hint flag strictly ([c732f32](https://github.com/Hushscript/hushscript-sdk-php/commit/c732f32c57d2d8e98a8171782014455be76ae6bd))
+* **deps-dev:** bump vimeo/psalm from 6.20.4 to 6.20.5 ([e1b77bc](https://github.com/Hushscript/hushscript-sdk-php/commit/e1b77bcbaa8b938fffb03fe71da6ff667227d65b))
+* **deps-dev:** bump vimeo/psalm from 6.20.4 to 6.20.5 ([76a38b9](https://github.com/Hushscript/hushscript-sdk-php/commit/76a38b92ebb18c8775bdcb0486160f504f2939c9))
+* promote develop to main ([c69a6eb](https://github.com/Hushscript/hushscript-sdk-php/commit/c69a6eb48491aa4f40f3bb17ddc2ec6cb46295b0))
+* promote develop to main ([02e7b67](https://github.com/Hushscript/hushscript-sdk-php/commit/02e7b67c9e6cec60eb2607e338f1443f6dff9263))
+* unify dependabot config across sdk repos ([19a9670](https://github.com/Hushscript/hushscript-sdk-php/commit/19a96706c279c2c6a8b484494298c1787a2e035d))
+
 ## [1.1.2](https://github.com/Hushscript/hushscript-sdk-php/compare/v1.1.1...v1.1.2) (2026-11-08)
 
 
