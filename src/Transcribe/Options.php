@@ -40,6 +40,9 @@ final class Options
     /** Mirrors the backend's MEDICAL_LANGUAGES, compared exactly. */
     private const MEDICAL_LANGUAGES = ['en', 'en_au', 'en_uk', 'en_us', 'es', 'fr', 'de', 'de_ch'];
 
+    /** Mirrors the backend's VET_LANGUAGES, compared exactly. */
+    private const VET_LANGUAGES = ['en', 'en_au', 'en_uk', 'en_us', 'es', 'fr', 'de', 'de_ch'];
+
     private const TRANSCRIBE = [
         'title', 'language', 'speakers', 'translate_to', 'keyterms', 'prompt', 'medical', 'vet', 'keep_disfluencies',
         'multichannel', 'auto_insights', 'matter_code', 'duration_seconds', 'size', 'idempotency_key', 'concurrency', 'wait_timeout',
@@ -140,8 +143,8 @@ final class Options
         if ($medical && ! in_array($language, self::MEDICAL_LANGUAGES, true)) {
             throw self::invalid('medical needs language to be one of '.implode(', ', self::MEDICAL_LANGUAGES).'.');
         }
-        if ($vet) {
-            throw self::invalid('vet is not available for any language yet.');
+        if ($vet && ! in_array($language, self::VET_LANGUAGES, true)) {
+            throw self::invalid('vet needs language to be one of '.implode(', ', self::VET_LANGUAGES).'.');
         }
         $keyterms = self::keyterms(self::strings($raw, 'keyterms'));
         $prompt = self::prompt(self::optionalString($raw, 'prompt'), $keyterms);

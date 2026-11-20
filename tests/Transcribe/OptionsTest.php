@@ -41,7 +41,7 @@ final class OptionsTest extends TestCase
         yield 'medical without a language' => [['medical' => true]];
         yield 'medical in the wrong language' => [['medical' => true, 'language' => 'ja']];
         yield 'vet without a language' => [['vet' => true]];
-        yield 'vet in a language not listed' => [['vet' => true, 'language' => 'en']];
+        yield 'vet in a language not listed' => [['vet' => true, 'language' => 'ja']];
         yield 'medical and vet together' => [['medical' => true, 'vet' => true, 'language' => 'en']];
         yield 'too many keyterms' => [['keyterms' => self::uniqueTerms(1001)]];
         yield 'a keyterm of 129 characters' => [['keyterms' => [str_repeat('a', 129)]]];
@@ -84,6 +84,7 @@ final class OptionsTest extends TestCase
         yield 'size' => [['size' => 0], 'size must be a positive whole number of bytes.'];
         yield 'short key' => [['idempotency_key' => 'short'], 'idempotency_key must be 16 to 128 visible ASCII characters, no spaces.'];
         yield 'medical' => [['medical' => true], 'medical needs language to be one of en, en_au, en_uk, en_us, es, fr, de, de_ch.'];
+        yield 'vet' => [['vet' => true], 'vet needs language to be one of en, en_au, en_uk, en_us, es, fr, de, de_ch.'];
         yield 'medical and vet' => [['medical' => true, 'vet' => true, 'language' => 'en'], 'medical and vet cannot be used together.'];
         yield 'term count' => [['keyterms' => self::uniqueTerms(1001)], 'keyterms takes up to 1000 unique terms.'];
         yield 'term words' => [['keyterms' => ['fine', 'one two three four five six seven']], 'keyterms[1] has more than 6 words.'];
@@ -239,6 +240,16 @@ final class OptionsTest extends TestCase
             self::assertSame(
                 ['language_code' => $language, 'medical_mode' => true],
                 Options::forTranscribe(['language' => $language, 'medical' => true])->transcriptionOptions(),
+            );
+        }
+    }
+
+    public function testVetModeAcceptsEachSupportedLanguage(): void
+    {
+        foreach (['en', 'en_au', 'en_uk', 'en_us', 'es', 'fr', 'de', 'de_ch'] as $language) {
+            self::assertSame(
+                ['language_code' => $language, 'vet_mode' => true],
+                Options::forTranscribe(['language' => $language, 'vet' => true])->transcriptionOptions(),
             );
         }
     }
