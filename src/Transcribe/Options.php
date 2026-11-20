@@ -27,10 +27,9 @@ final class Options
 
     private const MAX_KEYTERM_CHARS = 128;
 
-    private const MAX_PROMPT_CHARS = 2000;
+    private const MAX_KEYTERM_TOTAL_WORDS = 1000;
 
-    /** The fixed text the API wraps around a prompt and its key terms into one provider prompt. */
-    private const COMPILED_PROMPT_OVERHEAD = 203;
+    private const MAX_PROMPT_CHARS = 2000;
 
     /** Unicode White_Space, the set Rust's `char::is_whitespace` uses; PHP's `trim()` and `\s` cover less. */
     private const WHITESPACE = '\x{9}-\x{D}\x{20}\x{85}\x{A0}\x{1680}\x{2000}-\x{200A}\x{2028}\x{2029}\x{202F}\x{205F}\x{3000}';
@@ -42,6 +41,20 @@ final class Options
 
     /** Mirrors the backend's VET_LANGUAGES, compared exactly. */
     private const VET_LANGUAGES = ['en', 'en_au', 'en_uk', 'en_us', 'es', 'fr', 'de', 'de_ch'];
+
+    /** Mirrors the API's STT37_LANGUAGES: the languages that apply key terms and a prompt. */
+    private const STT37_LANGUAGES = [
+        'af', 'ar', 'ca', 'da', 'de', 'de_ch', 'en', 'en_au', 'en_uk', 'en_us', 'es', 'et', 'fa', 'fi', 'fr', 'gl',
+        'he', 'hi', 'it', 'ja', 'ko', 'mr', 'nl', 'nn', 'no', 'pt', 'ro', 'ru', 'sv', 'tr', 'ur', 'vi', 'zh',
+    ];
+
+    /** The rest of the API's SOURCE_LANGUAGES; the server names a code in neither list itself. */
+    private const UNIVERSAL_2_LANGUAGES = [
+        'am', 'as', 'az', 'ba', 'be', 'bg', 'bn', 'bo', 'br', 'bs', 'cs', 'cy', 'el', 'eu', 'fo', 'gu', 'ha', 'haw',
+        'hr', 'ht', 'hu', 'hy', 'id', 'is', 'jw', 'ka', 'kk', 'km', 'kn', 'la', 'lb', 'ln', 'lo', 'lt', 'lv', 'mg',
+        'mi', 'mk', 'ml', 'mn', 'ms', 'mt', 'my', 'ne', 'oc', 'pa', 'pl', 'ps', 'sa', 'sd', 'si', 'sk', 'sl', 'sn',
+        'so', 'sq', 'sr', 'su', 'sw', 'ta', 'te', 'tg', 'th', 'tk', 'tl', 'tt', 'uk', 'uz', 'yi', 'yo',
+    ];
 
     private const TRANSCRIBE = [
         'title', 'language', 'speakers', 'translate_to', 'keyterms', 'prompt', 'medical', 'vet', 'keep_disfluencies',
@@ -147,7 +160,8 @@ final class Options
             throw self::invalid('vet needs language to be one of '.implode(', ', self::VET_LANGUAGES).'.');
         }
         $keyterms = self::keyterms(self::strings($raw, 'keyterms'));
-        $prompt = self::prompt(self::optionalString($raw, 'prompt'), $keyterms);
+        $prompt = self::prompt(self::optionalString($raw, 'prompt'));
+        self::checkContextLanguage($language, $keyterms, $prompt);
         $matterCode = self::optionalString($raw, 'matter_code');
         if ($matterCode !== null && mb_strlen($matterCode) > self::MAX_MATTER_CODE) {
             throw self::invalid('matter_code must be at most '.self::MAX_MATTER_CODE.' characters.');
@@ -268,6 +282,7 @@ final class Options
     private static function keyterms(array $terms): array
     {
         $unique = [];
+        $totalWords = 0;
         foreach ($terms as $index => $term) {
             $term = self::trim($term);
             if ($term === '') {
@@ -280,34 +295,30 @@ final class Options
             if ($words !== false && count($words) > self::MAX_KEYTERM_WORDS) {
                 throw self::invalid('keyterms['.$index.'] has more than '.self::MAX_KEYTERM_WORDS.' words.');
             }
+            if (isset($unique[$term])) {
+                continue;
+            }
             $unique[$term] = true;
             if (count($unique) > self::MAX_KEYTERMS) {
                 throw self::invalid('keyterms takes up to '.self::MAX_KEYTERMS.' unique terms.');
             }
+            $totalWords += $words === false ? 0 : count($words);
+        }
+        if ($totalWords > self::MAX_KEYTERM_TOTAL_WORDS) {
+            throw self::invalid('keyterms takes up to '.self::MAX_KEYTERM_TOTAL_WORDS.' words in total ('.$totalWords.').');
         }
 
         return array_map(strval(...), array_keys($unique));
     }
 
-    /** @param list<string> $keyterms */
-    private static function prompt(?string $prompt, array $keyterms): ?string
+    private static function prompt(?string $prompt): ?string
     {
         $prompt = $prompt === null ? '' : self::trim($prompt);
         if ($prompt === '') {
             return null;
         }
-        $length = mb_strlen($prompt, 'UTF-8');
-        if ($length > self::MAX_PROMPT_CHARS) {
+        if (mb_strlen($prompt, 'UTF-8') > self::MAX_PROMPT_CHARS) {
             throw self::invalid('prompt is longer than '.self::MAX_PROMPT_CHARS.' characters.');
-        }
-        if ($keyterms !== []) {
-            $compiled = self::COMPILED_PROMPT_OVERHEAD + $length + count($keyterms) - 1;
-            foreach ($keyterms as $term) {
-                $compiled += mb_strlen($term, 'UTF-8') + 2;
-            }
-            if ($compiled > self::MAX_PROMPT_CHARS) {
-                throw self::invalid('prompt and keyterms together exceed '.self::MAX_PROMPT_CHARS.' characters ('.$compiled.').');
-            }
         }
 
         return $prompt;
@@ -398,6 +409,24 @@ final class Options
         }
 
         return $fields;
+    }
+
+    /**
+     * Key terms or a prompt do nothing in a language the API does not serve with its newest model, so the API refuses them.
+     *
+     * @param  list<string>  $keyterms
+     */
+    private static function checkContextLanguage(?string $language, array $keyterms, ?string $prompt): void
+    {
+        $code = strtolower(self::trim($language ?? ''));
+        if (! in_array($code, self::UNIVERSAL_2_LANGUAGES, true)) {
+            return;
+        }
+        $option = $keyterms !== [] ? 'keyterms' : ($prompt === null ? null : 'prompt');
+        if ($option === null) {
+            return;
+        }
+        throw self::invalid($option.' does not work for language "'.$code.'"; it needs language to be one of '.implode(', ', self::STT37_LANGUAGES).'.');
     }
 
     private static function invalid(string $message): PreflightError
