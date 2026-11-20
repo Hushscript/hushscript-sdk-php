@@ -40,6 +40,9 @@ final class OptionsTest extends TestCase
         yield 'key with a control character' => [['idempotency_key' => "0123456789abcdef\x01"]];
         yield 'medical without a language' => [['medical' => true]];
         yield 'medical in the wrong language' => [['medical' => true, 'language' => 'ja']];
+        yield 'vet without a language' => [['vet' => true]];
+        yield 'vet in a language not listed' => [['vet' => true, 'language' => 'en']];
+        yield 'medical and vet together' => [['medical' => true, 'vet' => true, 'language' => 'en']];
         yield 'too many keyterms' => [['keyterms' => self::uniqueTerms(1001)]];
         yield 'a keyterm of 129 characters' => [['keyterms' => [str_repeat('a', 129)]]];
         yield 'a prompt of 2001 characters' => [['prompt' => str_repeat('a', 2001)]];
@@ -80,7 +83,8 @@ final class OptionsTest extends TestCase
         yield 'duration' => [['duration_seconds' => 0], 'duration_seconds must be a positive number of seconds.'];
         yield 'size' => [['size' => 0], 'size must be a positive whole number of bytes.'];
         yield 'short key' => [['idempotency_key' => 'short'], 'idempotency_key must be 16 to 128 visible ASCII characters, no spaces.'];
-        yield 'medical' => [['medical' => true], 'medical needs language to be one of en, es, fr, de.'];
+        yield 'medical' => [['medical' => true], 'medical needs language to be one of en, en_au, en_uk, en_us, es, fr, de, de_ch.'];
+        yield 'medical and vet' => [['medical' => true, 'vet' => true, 'language' => 'en'], 'medical and vet cannot be used together.'];
         yield 'term count' => [['keyterms' => self::uniqueTerms(1001)], 'keyterms takes up to 1000 unique terms.'];
         yield 'term words' => [['keyterms' => ['fine', 'one two three four five six seven']], 'keyterms[1] has more than 6 words.'];
         yield 'term length' => [['keyterms' => ['fine', str_repeat('a', 129)]], 'keyterms[1] is longer than 128 characters.'];
@@ -91,7 +95,7 @@ final class OptionsTest extends TestCase
         foreach (['title', 'language', 'prompt', 'matter_code', 'idempotency_key'] as $name) {
             yield $name.' type' => [[$name => 5], $name.' must be a string.'];
         }
-        foreach (['speakers', 'medical', 'multichannel'] as $name) {
+        foreach (['speakers', 'medical', 'vet', 'keep_disfluencies', 'multichannel'] as $name) {
             yield $name.' type' => [[$name => 'yes'], $name.' must be true or false.'];
         }
         foreach (['keyterms', 'translate_to'] as $name) {
@@ -231,7 +235,7 @@ final class OptionsTest extends TestCase
 
     public function testMedicalModeAcceptsEachSupportedLanguage(): void
     {
-        foreach (['en', 'es', 'fr', 'de'] as $language) {
+        foreach (['en', 'en_au', 'en_uk', 'en_us', 'es', 'fr', 'de', 'de_ch'] as $language) {
             self::assertSame(
                 ['language_code' => $language, 'medical_mode' => true],
                 Options::forTranscribe(['language' => $language, 'medical' => true])->transcriptionOptions(),
@@ -444,6 +448,7 @@ final class OptionsTest extends TestCase
             'keyterms' => ['Hushscript', 'two words'],
             'prompt' => 'A meeting',
             'medical' => true,
+            'keep_disfluencies' => true,
             'multichannel' => true,
             'auto_insights' => false,
             'matter_code' => 'M-1',
@@ -456,6 +461,7 @@ final class OptionsTest extends TestCase
                 'keyterms_prompt' => ['Hushscript', 'two words'],
                 'prompt' => 'A meeting',
                 'medical_mode' => true,
+                'keep_disfluencies' => true,
                 'multichannel' => true,
                 'auto_generate_insights' => false,
             ],

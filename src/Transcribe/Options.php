@@ -37,11 +37,12 @@ final class Options
 
     private const MAX_MATTER_CODE = 64;
 
-    private const MEDICAL_LANGUAGES = ['en', 'es', 'fr', 'de'];
+    /** Mirrors the backend's MEDICAL_LANGUAGES, compared exactly. */
+    private const MEDICAL_LANGUAGES = ['en', 'en_au', 'en_uk', 'en_us', 'es', 'fr', 'de', 'de_ch'];
 
     private const TRANSCRIBE = [
-        'title', 'language', 'speakers', 'translate_to', 'keyterms', 'prompt', 'medical', 'multichannel',
-        'auto_insights', 'matter_code', 'duration_seconds', 'size', 'idempotency_key', 'concurrency', 'wait_timeout',
+        'title', 'language', 'speakers', 'translate_to', 'keyterms', 'prompt', 'medical', 'vet', 'keep_disfluencies',
+        'multichannel', 'auto_insights', 'matter_code', 'duration_seconds', 'size', 'idempotency_key', 'concurrency', 'wait_timeout',
         'on_progress', 'on_resume_token',
     ];
 
@@ -65,6 +66,8 @@ final class Options
         public readonly array $keyterms,
         public readonly ?string $prompt,
         public readonly bool $medical,
+        public readonly bool $vet,
+        public readonly bool $keepDisfluencies,
         public readonly bool $multichannel,
         public readonly ?bool $autoInsights,
         public readonly ?string $matterCode,
@@ -130,8 +133,15 @@ final class Options
         }
         $language = self::optionalString($raw, 'language');
         $medical = self::flag($raw, 'medical', false);
+        $vet = self::flag($raw, 'vet', false);
+        if ($medical && $vet) {
+            throw self::invalid('medical and vet cannot be used together.');
+        }
         if ($medical && ! in_array($language, self::MEDICAL_LANGUAGES, true)) {
-            throw self::invalid('medical needs language to be one of en, es, fr, de.');
+            throw self::invalid('medical needs language to be one of '.implode(', ', self::MEDICAL_LANGUAGES).'.');
+        }
+        if ($vet) {
+            throw self::invalid('vet is not available for any language yet.');
         }
         $keyterms = self::keyterms(self::strings($raw, 'keyterms'));
         $prompt = self::prompt(self::optionalString($raw, 'prompt'), $keyterms);
@@ -152,6 +162,8 @@ final class Options
             $keyterms,
             $prompt,
             $medical,
+            $vet,
+            self::flag($raw, 'keep_disfluencies', false),
             self::flag($raw, 'multichannel', false),
             $auto,
             $matterCode,
@@ -201,6 +213,12 @@ final class Options
         }
         if ($this->medical) {
             $wire['medical_mode'] = true;
+        }
+        if ($this->vet) {
+            $wire['vet_mode'] = true;
+        }
+        if ($this->keepDisfluencies) {
+            $wire['keep_disfluencies'] = true;
         }
         if ($this->multichannel) {
             $wire['multichannel'] = true;
