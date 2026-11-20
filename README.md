@@ -122,10 +122,13 @@ true duration), uploads it in parts, waits for the job and returns a `Transcript
 
 `keyterms` and `prompt` are trimmed first (Unicode whitespace); blank terms are dropped, repeated terms
 count once, and an empty list or blank prompt is not sent. Then, before any request: at most 1000 terms,
-each at most 128 characters (code points) and 6 words; a prompt of at most 2000 characters; and when both
-are set, the prompt and terms compiled together at most 2000 characters (203 + prompt + each term + 2,
-plus 1 between terms). A violation raises `PreflightError` (`invalid_option`) naming the limit and the
-term index.
+each at most 128 characters (code points) and 6 words; at most 1000 words in total across the terms; and
+a prompt of at most 2000 characters, on its own. The two are sent separately, so the prompt is not counted
+with the terms. The server also checks a token budget for both together; the SDK does not estimate it,
+and the server answers 422 when it is exceeded. Languages that the universal-2 model serves (most
+languages outside the supported list) refuse `keyterms` and `prompt` with `invalid_option`; the message
+lists the languages that accept them. A violation raises `PreflightError` (`invalid_option`) naming the
+limit and, for a single term, its index.
 
 When the call fails after the upload was created, the error carries `idempotencyKey` and
 `resumeToken`. A wait that runs out raises `WaitTimeoutError` with the token:

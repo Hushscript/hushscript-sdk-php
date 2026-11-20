@@ -88,9 +88,11 @@ final class Client
      *                                         idempotency_key, concurrency, wait_timeout, on_progress, on_resume_token.
      *                                         `keyterms` and `prompt` are trimmed first (blank ones are dropped and
      *                                         an empty option is not sent), then checked before any request: at most
-     *                                         1000 unique terms of 128 characters and 6 words each, a prompt of at
-     *                                         most 2000 characters, and 2000 for the prompt and terms compiled
-     *                                         together (203 + prompt + each term + 2 + 1 between terms)
+     *                                         1000 unique terms of 128 characters and 6 words each, at most 1000 words
+     *                                         in total across the terms, and a prompt of at most 2000 characters on its
+     *                                         own (the two are sent separately). The server also checks a token budget
+     *                                         for both, which the SDK does not estimate. Languages the universal-2
+     *                                         model serves refuse both with `invalid_option`.
      *
      * @throws \Hushscript\Exception\HushscriptException
      */

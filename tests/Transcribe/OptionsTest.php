@@ -90,7 +90,7 @@ final class OptionsTest extends TestCase
         yield 'term words' => [['keyterms' => ['fine', 'one two three four five six seven']], 'keyterms[1] has more than 6 words.'];
         yield 'term length' => [['keyterms' => ['fine', str_repeat('a', 129)]], 'keyterms[1] is longer than 128 characters.'];
         yield 'prompt length' => [['prompt' => str_repeat('a', 2001)], 'prompt is longer than 2000 characters.'];
-        yield 'compiled length' => [['prompt' => str_repeat('a', 1794), 'keyterms' => ['ab']], 'prompt and keyterms together exceed 2000 characters (2001).'];
+        yield 'term total words' => [['keyterms' => array_map(static fn (int $i): string => 't'.$i.' b c d e f', range(0, 166))], 'keyterms takes up to 1000 words in total (1002).'];
         yield 'matter' => [['matter_code' => str_repeat('m', 65)], 'matter_code must be at most 64 characters.'];
         yield 'auto insights' => [['auto_insights' => 1], 'auto_insights must be true, false or null.'];
         foreach (['title', 'language', 'prompt', 'matter_code', 'idempotency_key'] as $name) {
@@ -485,40 +485,57 @@ final class OptionsTest extends TestCase
         Options::forTranscribe(['prompt' => str_repeat('a', $limit + 1)]);
     }
 
-    public function testThePromptAndTermsAreCappedTogetherAsCompiled(): void
+    public function testThePromptIsCheckedAloneNotWithTheTerms(): void
     {
         $limit = self::limit('MAX_PROMPT_CHARS');
-        $terms = ['Hushscript', "b\u{E9}t\u{E0} \u{1F600}", 'x'];
-        $vocabulary = array_sum(array_map(static fn (string $term): int => mb_strlen($term, 'UTF-8') + 2, $terms)) + count($terms) - 1;
-        $fit = $limit - self::limit('COMPILED_PROMPT_OVERHEAD') - $vocabulary;
-
-        $options = Options::forTranscribe(['keyterms' => $terms, 'prompt' => str_repeat('a', $fit)]);
-        self::assertSame($terms, $options->keyterms);
-        self::assertSame(str_repeat('a', $fit), $options->prompt);
-        try {
-            Options::forTranscribe(['keyterms' => $terms, 'prompt' => str_repeat('a', $fit + 1)]);
-            self::fail('The compiled prompt is one character over.');
-        } catch (PreflightError $error) {
-            self::assertSame('prompt and keyterms together exceed '.$limit.' characters ('.($limit + 1).').', $error->getMessage());
-        }
-        $blankTerms = Options::forTranscribe(['keyterms' => [' ', "\t"], 'prompt' => str_repeat('a', $fit + 1)]);
-        self::assertSame(str_repeat('a', $fit + 1), $blankTerms->prompt, 'blank terms are not part of the compiled prompt');
-    }
-
-    public function testTheCompiledPromptCountsEachDistinctTermOnce(): void
-    {
-        $fit = self::limit('MAX_PROMPT_CHARS') - self::limit('COMPILED_PROMPT_OVERHEAD') - (1 + 2);
-
-        $options = Options::forTranscribe(['keyterms' => ['x', ' x ', 'x'], 'prompt' => str_repeat('a', $fit)]);
-
-        self::assertSame(['x'], $options->keyterms);
-    }
-
-    public function testKeytermsWithoutAPromptSkipTheCompiledCap(): void
-    {
         $terms = array_map(static fn (int $i): string => str_repeat('k', 120).$i, range(0, 999));
 
-        self::assertCount(1000, Options::forTranscribe(['keyterms' => $terms])->keyterms);
+        $options = Options::forTranscribe(['keyterms' => $terms, 'prompt' => str_repeat('a', $limit)]);
+
+        self::assertCount(1000, $options->keyterms);
+        self::assertSame(str_repeat('a', $limit), $options->prompt);
+        $this->expectException(PreflightError::class);
+        $this->expectExceptionMessage('prompt is longer than '.$limit.' characters.');
+
+        Options::forTranscribe(['keyterms' => ['x'], 'prompt' => str_repeat('a', $limit + 1)]);
+    }
+
+    public function testTheTermsAreCappedInWordsInTotal(): void
+    {
+        $limit = self::limit('MAX_KEYTERM_TOTAL_WORDS');
+        $fit = array_merge(array_map(static fn (int $i): string => 'a'.$i.' b c d e f', range(0, 165)), ['x y z h']);
+        $words = array_sum(array_map(static fn (string $term): int => count(preg_split('/\s+/', $term) ?: []), $fit));
+        self::assertSame($limit, $words);
+
+        self::assertSame($fit, Options::forTranscribe(['keyterms' => $fit])->keyterms);
+        try {
+            Options::forTranscribe(['keyterms' => array_merge($fit, ['one'])]);
+            self::fail('The terms are one word over.');
+        } catch (PreflightError $error) {
+            self::assertSame('invalid_option', $error->errorCode);
+            self::assertSame('keyterms takes up to '.$limit.' words in total ('.($limit + 1).').', $error->getMessage());
+        }
+    }
+
+    public function testTheWordTotalCountsTrimmedDistinctTermsByUnicodeWhitespace(): void
+    {
+        $limit = self::limit('MAX_KEYTERM_TOTAL_WORDS');
+        $terms = array_map(static fn (int $i): string => 'a'.$i." b\u{3000}c \u{A0}d\u{2003}e f", range(0, 165));
+        $terms[] = ' x y z h ';
+        $repeats = array_merge($terms, $terms, ['', " \t"]);
+
+        self::assertCount(167, Options::forTranscribe(['keyterms' => $repeats])->keyterms);
+        $this->expectException(PreflightError::class);
+        $this->expectExceptionMessage('in total ('.($limit + 1).')');
+
+        Options::forTranscribe(['keyterms' => array_merge($repeats, ['one'])]);
+    }
+
+    public function testBlankTermsAndAPromptAddNothingToTheWordTotal(): void
+    {
+        $terms = array_merge(array_map(static fn (int $i): string => 't'.$i, range(0, 999)), [' ', "\t"]);
+
+        self::assertCount(1000, Options::forTranscribe(['keyterms' => $terms, 'prompt' => str_repeat('p ', 900)])->keyterms);
     }
 
     public function testEmptyAndBlankOptionsAreNotSent(): void

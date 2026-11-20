@@ -27,10 +27,9 @@ final class Options
 
     private const MAX_KEYTERM_CHARS = 128;
 
-    private const MAX_PROMPT_CHARS = 2000;
+    private const MAX_KEYTERM_TOTAL_WORDS = 1000;
 
-    /** The fixed text the API wraps around a prompt and its key terms into one provider prompt. */
-    private const COMPILED_PROMPT_OVERHEAD = 203;
+    private const MAX_PROMPT_CHARS = 2000;
 
     /** Unicode White_Space, the set Rust's `char::is_whitespace` uses; PHP's `trim()` and `\s` cover less. */
     private const WHITESPACE = '\x{9}-\x{D}\x{20}\x{85}\x{A0}\x{1680}\x{2000}-\x{200A}\x{2028}\x{2029}\x{202F}\x{205F}\x{3000}';
@@ -161,7 +160,7 @@ final class Options
             throw self::invalid('vet needs language to be one of '.implode(', ', self::VET_LANGUAGES).'.');
         }
         $keyterms = self::keyterms(self::strings($raw, 'keyterms'));
-        $prompt = self::prompt(self::optionalString($raw, 'prompt'), $keyterms);
+        $prompt = self::prompt(self::optionalString($raw, 'prompt'));
         self::checkContextLanguage($language, $keyterms, $prompt);
         $matterCode = self::optionalString($raw, 'matter_code');
         if ($matterCode !== null && mb_strlen($matterCode) > self::MAX_MATTER_CODE) {
@@ -283,6 +282,7 @@ final class Options
     private static function keyterms(array $terms): array
     {
         $unique = [];
+        $totalWords = 0;
         foreach ($terms as $index => $term) {
             $term = self::trim($term);
             if ($term === '') {
@@ -295,34 +295,30 @@ final class Options
             if ($words !== false && count($words) > self::MAX_KEYTERM_WORDS) {
                 throw self::invalid('keyterms['.$index.'] has more than '.self::MAX_KEYTERM_WORDS.' words.');
             }
+            if (isset($unique[$term])) {
+                continue;
+            }
             $unique[$term] = true;
             if (count($unique) > self::MAX_KEYTERMS) {
                 throw self::invalid('keyterms takes up to '.self::MAX_KEYTERMS.' unique terms.');
             }
+            $totalWords += $words === false ? 0 : count($words);
+        }
+        if ($totalWords > self::MAX_KEYTERM_TOTAL_WORDS) {
+            throw self::invalid('keyterms takes up to '.self::MAX_KEYTERM_TOTAL_WORDS.' words in total ('.$totalWords.').');
         }
 
         return array_map(strval(...), array_keys($unique));
     }
 
-    /** @param list<string> $keyterms */
-    private static function prompt(?string $prompt, array $keyterms): ?string
+    private static function prompt(?string $prompt): ?string
     {
         $prompt = $prompt === null ? '' : self::trim($prompt);
         if ($prompt === '') {
             return null;
         }
-        $length = mb_strlen($prompt, 'UTF-8');
-        if ($length > self::MAX_PROMPT_CHARS) {
+        if (mb_strlen($prompt, 'UTF-8') > self::MAX_PROMPT_CHARS) {
             throw self::invalid('prompt is longer than '.self::MAX_PROMPT_CHARS.' characters.');
-        }
-        if ($keyterms !== []) {
-            $compiled = self::COMPILED_PROMPT_OVERHEAD + $length + count($keyterms) - 1;
-            foreach ($keyterms as $term) {
-                $compiled += mb_strlen($term, 'UTF-8') + 2;
-            }
-            if ($compiled > self::MAX_PROMPT_CHARS) {
-                throw self::invalid('prompt and keyterms together exceed '.self::MAX_PROMPT_CHARS.' characters ('.$compiled.').');
-            }
         }
 
         return $prompt;
