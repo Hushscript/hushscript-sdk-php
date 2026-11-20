@@ -66,7 +66,7 @@
       "post": {
         "operationId": "create_upload",
         "summary": "Start a new transcription upload and place a credit hold",
-        "description": "Declares the size and duration of a new audio upload, places a credit hold for the billable seconds (duration plus any transcription_options surcharge), and returns a job id plus, when direct-to-R2 uploads are available, a first page of presigned part URLs. Resending the same idempotency_key returns the already-created job instead of opening a second one. Long direct-to-R2 transfers must call heartbeat_upload periodically or the job is reaped as idle.",
+        "description": "Declares the size and duration of a new audio upload, places a credit hold for the billable seconds (duration plus any transcription_options surcharge: medical_mode or vet_mode, multichannel, translation), and returns a job id plus, when direct-to-R2 uploads are available, a first page of presigned part URLs. Resending the same idempotency_key returns the already-created job instead of opening a second one. Long direct-to-R2 transfers must call heartbeat_upload periodically or the job is reaped as idle.",
         "security": [
           {
             "BearerAuth": []
@@ -167,11 +167,19 @@
                           },
                           "medical_mode": {
                             "type": "boolean",
-                            "description": "Bill and transcribe as a medical dictation. Requires language_code to be one of en, es, fr, de; billed at a 100 percent surcharge on the duration."
+                            "description": "Bill and transcribe as a medical dictation. Requires language_code to be one of en, es, fr, de; billed at a 100 percent surcharge on the duration. Cannot be combined with vet_mode."
+                          },
+                          "vet_mode": {
+                            "type": "boolean",
+                            "description": "Beta. Transcribe as a veterinary dictation. Requires a manually set language_code from the supported list; auto-detection is refused. Billed at a 100 percent surcharge on the duration, exactly like medical_mode, and cannot be combined with medical_mode. Not available in private mode."
+                          },
+                          "keep_disfluencies": {
+                            "type": "boolean",
+                            "description": "Keep disfluencies in the transcript instead of removing them. On many languages this also keeps repetitions, stutters and false starts; on others it keeps filler words only. Free, and allowed in private mode. Defaults to false."
                           },
                           "multichannel": {
                             "type": "boolean",
-                            "description": "Transcribe each audio channel independently. Billed per channel: a stereo file counts twice, a 3-channel file three times, up to 8 channels, and the medical surcharge applies on top of that; translation targets stay on a single duration. The channel count is the most channels any audio track of the file carries. A file with more than 8 channels, or one whose channel count cannot be read, falls back to mixed audio with speaker labels and is billed once. Without this option the file is transcribed as one mixed channel and billed once. The initial hold at upload creation is for a single channel; verification raises it to the per-channel amount and fails the job with insufficient_balance if the balance cannot cover it."
+                            "description": "Transcribe each audio channel independently. Billed per channel: a stereo file counts twice, a 3-channel file three times, up to 8 channels, and the medical or vet surcharge applies on top of that; translation targets stay on a single duration. The channel count is the most channels any audio track of the file carries. A file with more than 8 channels, or one whose channel count cannot be read, falls back to mixed audio with speaker labels and is billed once. Without this option the file is transcribed as one mixed channel and billed once. The initial hold at upload creation is for a single channel; verification raises it to the per-channel amount and fails the job with insufficient_balance if the balance cannot cover it."
                           },
                           "translation_targets": {
                             "type": "array",
@@ -421,7 +429,7 @@
       "put": {
         "operationId": "upload_part",
         "summary": "Upload one part of a job's audio through this API",
-        "description": "Sends one part's raw bytes to be written into the job's in-progress R2 multipart upload. Only needed when direct-to-R2 presigned URLs are unavailable, or as a fallback for a part whose presigned PUT failed. A repeated PUT of the same part number replaces that part rather than adding to the declared total, so retries are always safe.",
+        "description": "Sends one part's raw bytes to be written into the job's in-progress R2 multipart upload. Only needed when direct-to-R2 presigned URLs are unavailable, or as a fallback for a part whose presigned PUT failed. A repeated PUT of the same part number replaces that part rather than adding to the declared total, so retries are always safe. A Content-Length header is required: the body is streamed to storage and held to that length, and a part sent without one (chunked transfer) is refused with 400 bad_request.",
         "security": [
           {
             "BearerAuth": []
@@ -3734,6 +3742,12 @@
           "medical_mode": {
             "type": "boolean"
           },
+          "vet_mode": {
+            "type": "boolean"
+          },
+          "keep_disfluencies": {
+            "type": "boolean"
+          },
           "multichannel": {
             "type": "boolean"
           },
@@ -3763,6 +3777,8 @@
           "language_code",
           "speaker_detection",
           "medical_mode",
+          "vet_mode",
+          "keep_disfluencies",
           "multichannel",
           "translation_targets",
           "keyterms",
@@ -4312,6 +4328,15 @@
               "null"
             ]
           },
+          "provider": {
+            "type": "string",
+            "enum": [
+              "stripe",
+              "apple",
+              "google"
+            ],
+            "description": "Where the purchase was paid: Stripe (card, wallet, bank), or a store (Apple, Google Play)."
+          },
           "payment_method_brand": {
             "type": [
               "string",
@@ -4347,6 +4372,7 @@
           "status",
           "created_at",
           "payment_method_type",
+          "provider",
           "payment_method_brand",
           "payment_method_last4",
           "receipt_number",
@@ -5231,7 +5257,7 @@
           },
           "accept_terms_version": {
             "type": "string",
-            "description": "Must equal the server's current policy version or the request is refused with policy_version_stale, which names the current value."
+            "description": "Must be the server's current policy version or, for 30 days after the current version's date, the previous one; otherwise the request is refused with policy_version_stale, which names the current value."
           },
           "data_region": {
             "type": "string",
@@ -5802,19 +5828,25 @@
       "code": 1043,
       "slug": "policy_version_stale",
       "status": 422,
-      "meaning": "accept_terms_version did not match the server's current policy version. The server records its own value, never the caller's, so retry with the current version, which this same error names in details.current_version."
+      "meaning": "accept_terms_version was neither the server's current policy version nor, for 30 days after its date, the previous one. The server records only a version it defines, so retry with the current version, which this same error names in details.current_version."
     },
     {
       "code": 1044,
       "slug": "terms_acceptance_required",
       "status": 422,
-      "meaning": "A first Apple or Google sign-in creates an account, so the current terms version must be accepted. Send the version in accept_terms_version; details.current_version names the value to send."
+      "meaning": "A first Apple or Google sign-in creates an account, so the current terms version, or the previous one for 30 days after the current version's date, must be accepted. Send the version in accept_terms_version; details.current_version names the value to send."
     },
     {
       "code": 1045,
       "slug": "password_reused",
       "status": 400,
       "meaning": "The new password equals the account's current password or one of the three before it. Choose a password that differs from the last four. Each comparison counts against the same hourly failure limit as a wrong current password."
+    },
+    {
+      "code": 1046,
+      "slug": "store_purchase_invalid",
+      "status": 422,
+      "meaning": "A store purchase receipt failed verification. The token is unknown to the store, is not a completed purchase, belongs to another app or product, or cannot be credited. Nothing was credited and the purchase is not consumed; do not retry the same token."
     },
     {
       "code": 2000,
@@ -5893,6 +5925,12 @@
       "slug": "identity_email_unverified",
       "status": 403,
       "meaning": "The Apple or Google account has no verified email address, so no account can be created or matched from it. Verify the email with the provider or sign in another way."
+    },
+    {
+      "code": 2027,
+      "slug": "integrity_failed",
+      "status": 403,
+      "meaning": "The native app's Play Integrity attestation was refused: the token is invalid, stale, replayed, for another package or request, or the device does not meet the required integrity level. Fetch a fresh nonce and retry, or fall back to the Turnstile challenge."
     },
     {
       "code": 3000,
@@ -6351,6 +6389,36 @@
       "meaning": "The job is not parked awaiting credit and cannot be started from its current state."
     },
     {
+      "code": 4076,
+      "slug": "transcript_revision_conflict",
+      "status": 409,
+      "meaning": "A body write carried an If-Match revision that is no longer the stored one. The response body's revision field names the current revision."
+    },
+    {
+      "code": 4077,
+      "slug": "login_code_invalid",
+      "status": 422,
+      "meaning": "The six-digit code typed into the app for a native magic link is wrong, expired, already used, or out of guesses. Every failure gets this one answer, so it cannot be used to probe."
+    },
+    {
+      "code": 4078,
+      "slug": "preview_device_used",
+      "status": 409,
+      "meaning": "This device has already used its free preview. Sign in or sign up to keep transcribing; a preview from the same device is not offered again."
+    },
+    {
+      "code": 4079,
+      "slug": "gift_unavailable",
+      "status": 409,
+      "meaning": "The gift cannot be redeemed or created right now. details.reason names why, for example that it was already claimed, has expired, or that the daily gift limit was reached."
+    },
+    {
+      "code": 4080,
+      "slug": "store_purchase_claimed",
+      "status": 409,
+      "meaning": "This store purchase token was already credited to another account. Nothing is credited. (The same account submitting it again gets 200 already_credited.)"
+    },
+    {
       "code": 5000,
       "slug": "rate_limited",
       "status": 429,
@@ -6397,6 +6465,18 @@
       "slug": "identity_provider_unavailable",
       "status": 503,
       "meaning": "Apple or Google sign-in is turned off or the provider could not be reached. Try again later or use another sign-in method."
+    },
+    {
+      "code": 6020,
+      "slug": "attestation_unavailable",
+      "status": 503,
+      "meaning": "The device attestation service could not be reached or is not configured, so the native app's token could not be checked. Open the Turnstile challenge and resend with its token."
+    },
+    {
+      "code": 6030,
+      "slug": "store_unavailable",
+      "status": 503,
+      "meaning": "The app store could not be reached or is not configured, so the purchase could not be verified. The purchase stays unconsumed and nothing was credited; the app retries it later."
     },
     {
       "code": 9000,

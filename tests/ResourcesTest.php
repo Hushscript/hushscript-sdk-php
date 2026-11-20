@@ -95,7 +95,7 @@ final class ResourcesTest extends TestCase
 
     public function testAnUnknownKeyNestedInAJobResponseStaysReachable(): void
     {
-        $options = ['language_code' => null, 'speaker_detection' => true, 'medical_mode' => false, 'multichannel' => false, 'translation_targets' => [], 'keyterms' => false, 'prompt' => false, 'auto_generate_insights' => null, 'future_option' => ['mode' => ['fast', null]]];
+        $options = ['language_code' => null, 'speaker_detection' => true, 'medical_mode' => false, 'vet_mode' => false, 'keep_disfluencies' => false, 'multichannel' => false, 'translation_targets' => [], 'keyterms' => false, 'prompt' => false, 'auto_generate_insights' => null, 'future_option' => ['mode' => ['fast', null]]];
         $body = PipelineHarness::jobBody(changes: ['options' => $options]);
         $http = new FakeHttp([FakeHttp::json(200, $body)]);
 
@@ -313,7 +313,7 @@ final class ResourcesTest extends TestCase
 
     public function testJobsGetReturnsTheFullShapeAndPassesAnUnknownStateThrough(): void
     {
-        $http = new FakeHttp([FakeHttp::json(200, PipelineHarness::jobBody('reticulating', ['transcript_id' => 'tr_shape', 'declared_seconds' => 31, 'verified_seconds' => 32, 'actual_seconds' => 33, 'billable_seconds' => 34, 'retry_of' => 'job_original', 'error' => 'opaque failure', 'failure_kind' => 'media_unreadable', 'options' => ['language_code' => 'de', 'speaker_detection' => false, 'medical_mode' => true, 'multichannel' => false, 'translation_targets' => ['es', 'fr'], 'keyterms' => true, 'prompt' => false, 'auto_generate_insights' => true], 'private_result_key' => 'x', 'fetch_url' => 'https://secret.example/']))]);
+        $http = new FakeHttp([FakeHttp::json(200, PipelineHarness::jobBody('reticulating', ['transcript_id' => 'tr_shape', 'declared_seconds' => 31, 'verified_seconds' => 32, 'actual_seconds' => 33, 'billable_seconds' => 34, 'retry_of' => 'job_original', 'error' => 'opaque failure', 'failure_kind' => 'media_unreadable', 'options' => ['language_code' => 'de', 'speaker_detection' => false, 'medical_mode' => true, 'vet_mode' => false, 'keep_disfluencies' => false, 'multichannel' => false, 'translation_targets' => ['es', 'fr'], 'keyterms' => true, 'prompt' => false, 'auto_generate_insights' => true], 'private_result_key' => 'x', 'fetch_url' => 'https://secret.example/']))]);
 
         $job = (new Jobs((new Rig($http))->exchange, (new PipelineHarness())->pipeline))->get('job_1');
 
@@ -572,6 +572,8 @@ final class ResourcesTest extends TestCase
     {
         yield 'speakers' => ['speaker_detection', 'speakerDetection'];
         yield 'medical' => ['medical_mode', 'medicalMode'];
+        yield 'vet' => ['vet_mode', 'vetMode'];
+        yield 'keep disfluencies' => ['keep_disfluencies', 'keepDisfluencies'];
         yield 'multichannel' => ['multichannel', 'multichannel'];
         yield 'keyterms' => ['keyterms', 'keyterms'];
         yield 'prompt' => ['prompt', 'prompt'];
@@ -581,7 +583,7 @@ final class ResourcesTest extends TestCase
     #[DataProvider('jobOptionFlags')]
     public function testEveryJobOptionFlagReadsItsOwnWireKey(string $wire, string $property): void
     {
-        $flags = ['speaker_detection' => false, 'medical_mode' => false, 'multichannel' => false, 'keyterms' => false, 'prompt' => false, 'auto_generate_insights' => false];
+        $flags = ['speaker_detection' => false, 'medical_mode' => false, 'vet_mode' => false, 'keep_disfluencies' => false, 'multichannel' => false, 'keyterms' => false, 'prompt' => false, 'auto_generate_insights' => false];
         $flags[$wire] = true;
         $http = new FakeHttp([FakeHttp::json(200, PipelineHarness::jobBody('queued', ['options' => [...$flags, 'language_code' => null, 'translation_targets' => []]]))]);
         $job = (new Jobs((new Rig($http))->exchange, (new PipelineHarness())->pipeline))->get('job_1');
@@ -589,6 +591,8 @@ final class ResourcesTest extends TestCase
             $actual = match ($name) {
                 'speakerDetection' => $job->options->speakerDetection,
                 'medicalMode' => $job->options->medicalMode,
+                'vetMode' => $job->options->vetMode,
+                'keepDisfluencies' => $job->options->keepDisfluencies,
                 'multichannel' => $job->options->multichannel,
                 'keyterms' => $job->options->keyterms,
                 'prompt' => $job->options->prompt,

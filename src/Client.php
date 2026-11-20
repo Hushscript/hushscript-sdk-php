@@ -84,7 +84,7 @@ final class Client
      *                                 reads one that can seek from its start, and one that cannot from where it stands
      *                                 (that must be the first byte of the file). It never closes a stream.
      * @param  array<string, mixed>  $options  title, language, speakers, translate_to, keyterms, prompt, medical,
-     *                                         multichannel, auto_insights, matter_code, duration_seconds, size,
+     *                                         vet, keep_disfluencies, multichannel, auto_insights, matter_code, duration_seconds, size,
      *                                         idempotency_key, concurrency, wait_timeout, on_progress, on_resume_token.
      *                                         `keyterms` and `prompt` are trimmed first (blank ones are dropped and
      *                                         an empty option is not sent), then checked before any request: at most
