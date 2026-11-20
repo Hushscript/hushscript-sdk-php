@@ -504,7 +504,7 @@ final class OptionsTest extends TestCase
     {
         $limit = self::limit('MAX_KEYTERM_TOTAL_WORDS');
         $fit = array_merge(array_map(static fn (int $i): string => 'a'.$i.' b c d e f', range(0, 165)), ['x y z h']);
-        $words = array_sum(array_map(static fn (string $term): int => count(preg_split('/\s+/', $term) ?: []), $fit));
+        $words = array_sum(array_map(static fn (string $term): int => substr_count($term, ' ') + 1, $fit));
         self::assertSame($limit, $words);
 
         self::assertSame($fit, Options::forTranscribe(['keyterms' => $fit])->keyterms);
