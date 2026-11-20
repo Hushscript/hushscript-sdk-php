@@ -254,6 +254,126 @@ final class OptionsTest extends TestCase
         }
     }
 
+    /** @return iterable<string, array{string}> */
+    public static function stt37Languages(): iterable
+    {
+        foreach (self::stt37() as $language) {
+            yield $language => [$language];
+        }
+    }
+
+    /** @return iterable<string, array{string}> */
+    public static function universal2Languages(): iterable
+    {
+        foreach ([
+            'am', 'as', 'az', 'ba', 'be', 'bg', 'bn', 'bo', 'br', 'bs', 'cs', 'cy', 'el', 'eu', 'fo', 'gu', 'ha', 'haw',
+            'hr', 'ht', 'hu', 'hy', 'id', 'is', 'jw', 'ka', 'kk', 'km', 'kn', 'la', 'lb', 'ln', 'lo', 'lt', 'lv', 'mg',
+            'mi', 'mk', 'ml', 'mn', 'ms', 'mt', 'my', 'ne', 'oc', 'pa', 'pl', 'ps', 'sa', 'sd', 'si', 'sk', 'sl', 'sn',
+            'so', 'sq', 'sr', 'su', 'sw', 'ta', 'te', 'tg', 'th', 'tk', 'tl', 'tt', 'uk', 'uz', 'yi', 'yo',
+        ] as $language) {
+            yield $language => [$language];
+        }
+    }
+
+    /** @return list<string> */
+    private static function stt37(): array
+    {
+        return [
+            'af', 'ar', 'ca', 'da', 'de', 'de_ch', 'en', 'en_au', 'en_uk', 'en_us', 'es', 'et', 'fa', 'fi', 'fr', 'gl',
+            'he', 'hi', 'it', 'ja', 'ko', 'mr', 'nl', 'nn', 'no', 'pt', 'ro', 'ru', 'sv', 'tr', 'ur', 'vi', 'zh',
+        ];
+    }
+
+    /** @param array<string, mixed> $raw */
+    private static function contextRefusal(array $raw): PreflightError
+    {
+        try {
+            Options::forTranscribe($raw);
+        } catch (PreflightError $error) {
+            return $error;
+        }
+        self::fail('expected invalid_option');
+    }
+
+    private static function contextMessage(string $option, string $language): string
+    {
+        return $option.' does not work for language "'.$language.'"; it needs language to be one of '.implode(', ', self::stt37()).'.';
+    }
+
+    #[DataProvider('universal2Languages')]
+    public function testKeytermsAreRefusedInEachUniversal2Language(string $language): void
+    {
+        $error = self::contextRefusal(['keyterms' => ['Hushscript'], 'language' => $language]);
+
+        self::assertSame('invalid_option', $error->errorCode);
+        self::assertNull($error->status);
+        self::assertSame(self::contextMessage('keyterms', $language), $error->getMessage());
+    }
+
+    #[DataProvider('universal2Languages')]
+    public function testPromptIsRefusedInEachUniversal2Language(string $language): void
+    {
+        $error = self::contextRefusal(['prompt' => 'Names.', 'language' => $language]);
+
+        self::assertSame('invalid_option', $error->errorCode);
+        self::assertNull($error->status);
+        self::assertSame(self::contextMessage('prompt', $language), $error->getMessage());
+    }
+
+    #[DataProvider('stt37Languages')]
+    public function testKeytermsAndPromptAreAcceptedInEachStt37Language(string $language): void
+    {
+        self::assertSame(
+            ['language_code' => $language, 'keyterms_prompt' => ['Hushscript'], 'prompt' => 'Names.'],
+            Options::forTranscribe(['keyterms' => ['Hushscript'], 'prompt' => 'Names.', 'language' => $language])->transcriptionOptions(),
+        );
+    }
+
+    public function testTheKeytermMessageNamesTheNormalizedLanguageWhenBothAreSet(): void
+    {
+        $error = self::contextRefusal(['keyterms' => ['x'], 'prompt' => 'Names.', 'language' => ' PL ']);
+
+        self::assertSame(self::contextMessage('keyterms', 'pl'), $error->getMessage());
+    }
+
+    public function testAPromptIsRefusedNextToBlankKeyterms(): void
+    {
+        $error = self::contextRefusal(['keyterms' => [' ', ''], 'prompt' => 'Names.', 'language' => 'th']);
+
+        self::assertSame(self::contextMessage('prompt', 'th'), $error->getMessage());
+    }
+
+    /** @return iterable<string, array{array<string, mixed>}> */
+    public static function contextWithoutRefusal(): iterable
+    {
+        yield 'blank key terms and a blank prompt' => [['keyterms' => [' ', ''], 'prompt' => '  ']];
+        yield 'an empty key term list' => [['keyterms' => []]];
+        yield 'no context, with keep_disfluencies' => [['keep_disfluencies' => true]];
+    }
+
+    /** @param array<string, mixed> $raw */
+    #[DataProvider('contextWithoutRefusal')]
+    public function testBlankContextIsNotRefusedInAUniversal2Language(array $raw): void
+    {
+        self::assertSame('pl', Options::forTranscribe($raw + ['language' => 'pl'])->language);
+    }
+
+    public function testKeytermsAndPromptAreAcceptedUnderAutoDetect(): void
+    {
+        self::assertSame(
+            ['keyterms_prompt' => ['Hushscript'], 'prompt' => 'Names.'],
+            Options::forTranscribe(['keyterms' => ['Hushscript'], 'prompt' => 'Names.'])->transcriptionOptions(),
+        );
+    }
+
+    public function testAnUnlistedLanguageIsLeftToTheServer(): void
+    {
+        self::assertSame(
+            ['language_code' => 'xx', 'keyterms_prompt' => ['Hushscript']],
+            Options::forTranscribe(['keyterms' => ['Hushscript'], 'language' => 'xx'])->transcriptionOptions(),
+        );
+    }
+
     public function testKeytermWordsAreSeparatedByUnicodeWhitespace(): void
     {
         $six = "one\ttwo\nthree\u{2003}four five six";

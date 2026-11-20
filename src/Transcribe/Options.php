@@ -43,6 +43,20 @@ final class Options
     /** Mirrors the backend's VET_LANGUAGES, compared exactly. */
     private const VET_LANGUAGES = ['en', 'en_au', 'en_uk', 'en_us', 'es', 'fr', 'de', 'de_ch'];
 
+    /** Mirrors the API's STT37_LANGUAGES: the languages that apply key terms and a prompt. */
+    private const STT37_LANGUAGES = [
+        'af', 'ar', 'ca', 'da', 'de', 'de_ch', 'en', 'en_au', 'en_uk', 'en_us', 'es', 'et', 'fa', 'fi', 'fr', 'gl',
+        'he', 'hi', 'it', 'ja', 'ko', 'mr', 'nl', 'nn', 'no', 'pt', 'ro', 'ru', 'sv', 'tr', 'ur', 'vi', 'zh',
+    ];
+
+    /** The rest of the API's SOURCE_LANGUAGES; the server names a code in neither list itself. */
+    private const UNIVERSAL_2_LANGUAGES = [
+        'am', 'as', 'az', 'ba', 'be', 'bg', 'bn', 'bo', 'br', 'bs', 'cs', 'cy', 'el', 'eu', 'fo', 'gu', 'ha', 'haw',
+        'hr', 'ht', 'hu', 'hy', 'id', 'is', 'jw', 'ka', 'kk', 'km', 'kn', 'la', 'lb', 'ln', 'lo', 'lt', 'lv', 'mg',
+        'mi', 'mk', 'ml', 'mn', 'ms', 'mt', 'my', 'ne', 'oc', 'pa', 'pl', 'ps', 'sa', 'sd', 'si', 'sk', 'sl', 'sn',
+        'so', 'sq', 'sr', 'su', 'sw', 'ta', 'te', 'tg', 'th', 'tk', 'tl', 'tt', 'uk', 'uz', 'yi', 'yo',
+    ];
+
     private const TRANSCRIBE = [
         'title', 'language', 'speakers', 'translate_to', 'keyterms', 'prompt', 'medical', 'vet', 'keep_disfluencies',
         'multichannel', 'auto_insights', 'matter_code', 'duration_seconds', 'size', 'idempotency_key', 'concurrency', 'wait_timeout',
@@ -148,6 +162,7 @@ final class Options
         }
         $keyterms = self::keyterms(self::strings($raw, 'keyterms'));
         $prompt = self::prompt(self::optionalString($raw, 'prompt'), $keyterms);
+        self::checkContextLanguage($language, $keyterms, $prompt);
         $matterCode = self::optionalString($raw, 'matter_code');
         if ($matterCode !== null && mb_strlen($matterCode) > self::MAX_MATTER_CODE) {
             throw self::invalid('matter_code must be at most '.self::MAX_MATTER_CODE.' characters.');
@@ -398,6 +413,24 @@ final class Options
         }
 
         return $fields;
+    }
+
+    /**
+     * Key terms or a prompt do nothing in a language the API does not serve with its newest model, so the API refuses them.
+     *
+     * @param  list<string>  $keyterms
+     */
+    private static function checkContextLanguage(?string $language, array $keyterms, ?string $prompt): void
+    {
+        $code = strtolower(self::trim($language ?? ''));
+        if (! in_array($code, self::UNIVERSAL_2_LANGUAGES, true)) {
+            return;
+        }
+        $option = $keyterms !== [] ? 'keyterms' : ($prompt === null ? null : 'prompt');
+        if ($option === null) {
+            return;
+        }
+        throw self::invalid($option.' does not work for language "'.$code.'"; it needs language to be one of '.implode(', ', self::STT37_LANGUAGES).'.');
     }
 
     private static function invalid(string $message): PreflightError
