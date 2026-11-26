@@ -145,29 +145,29 @@
                               "string",
                               "null"
                             ],
-                            "description": "Force a specific spoken language instead of auto-detection."
+                            "description": "Force a specific spoken language instead of auto-detection. Key terms, a prompt and filler words (keep_disfluencies) only take effect for the 33 languages AssemblyAI serves with its newest model; for the other languages, typed key terms or a typed prompt are refused with invalid_transcription_options."
                           },
                           "speaker_detection": {
                             "type": "boolean",
-                            "description": "Label distinct speakers in the transcript. Forced on automatically when translation_targets is non-empty."
+                            "description": "Label distinct speakers in the transcript. Independent of translation_targets."
                           },
                           "keyterms_prompt": {
                             "type": "array",
                             "items": {
                               "type": "string"
                             },
-                            "description": "Domain vocabulary to bias transcription toward, up to 1000 terms of at most 6 words each."
+                            "description": "Domain vocabulary to bias transcription toward, up to 1000 terms of at most 6 words each, and at most 1,000 words in total after merging saved dictionaries and one-off terms. Refused with invalid_transcription_options when the language (language_code, or every expected language under auto-detection) is one where key terms have no effect, or when the merged terms and the prompt together exceed the provider token budget (how many fit depends on the script and the length of the terms)."
                           },
                           "prompt": {
                             "type": [
                               "string",
                               "null"
                             ],
-                            "description": "Free-text context to bias transcription toward."
+                            "description": "Free-text context to bias transcription toward. Refused with invalid_transcription_options when the language is one where a prompt has no effect. Sent as written, separately from the key terms; the two share one provider token budget."
                           },
                           "medical_mode": {
                             "type": "boolean",
-                            "description": "Bill and transcribe as a medical dictation. Requires language_code to be one of en, es, fr, de; billed at a 100 percent surcharge on the duration. Cannot be combined with vet_mode."
+                            "description": "Bill and transcribe as a medical dictation. Requires language_code to be one of en, en_au, en_uk, en_us, es, fr, de, de_ch; billed at a 100 percent surcharge on the duration. Cannot be combined with vet_mode."
                           },
                           "vet_mode": {
                             "type": "boolean",
@@ -175,7 +175,7 @@
                           },
                           "keep_disfluencies": {
                             "type": "boolean",
-                            "description": "Keep disfluencies in the transcript instead of removing them. On many languages this also keeps repetitions, stutters and false starts; on others it keeps filler words only. Free, and allowed in private mode. Defaults to false."
+                            "description": "Keep disfluencies in the transcript instead of removing them. On many languages this also keeps repetitions, stutters and false starts; on others it keeps filler words only. Free, and allowed in private mode. Defaults to false. Only takes effect for the languages where key terms take effect; for any other language the server stores false."
                           },
                           "multichannel": {
                             "type": "boolean",
@@ -186,7 +186,8 @@
                             "items": {
                               "type": "string"
                             },
-                            "description": "Locales to additionally translate the transcript into. Each target adds a 25 percent surcharge on the duration and forces speaker_detection on."
+                            "maxItems": 15,
+                            "description": "Locales to additionally translate the transcript into: any language code accepted by language_code except the regional variants (en_au, en_uk, en_us, de_ch), 99 in all. At most 15 distinct targets per upload (a saved edit holds the original plus 15 translations); more is refused with invalid_transcription_options. A target equal to the source language is refused. Each target adds a 25 percent surcharge on the duration."
                           },
                           "auto_generate_insights": {
                             "type": [
@@ -201,6 +202,18 @@
                         "type": "null"
                       }
                     ]
+                  },
+                  "origin_source": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "enum": [
+                      "upload",
+                      "recording",
+                      null
+                    ],
+                    "description": "Optional. Whether the audio is an uploaded file or a recording. Any other value is ignored, never refused. When absent, a retry inherits its retry_of job's value, and a Personal Access Token caller outside the Chrome extension is recorded as upload."
                   }
                 },
                 "required": [
@@ -3759,11 +3772,11 @@
           },
           "keyterms": {
             "type": "boolean",
-            "description": "Whether a keyterms prompt was set. The terms themselves are not included."
+            "description": "Whether a keyterms prompt was set and applies. False when the language cannot use key terms, even if a saved dictionary was selected. The terms themselves are not included."
           },
           "prompt": {
             "type": "boolean",
-            "description": "Whether a free-text context prompt was set. The prompt itself is not included."
+            "description": "Whether a free-text context prompt was set and applies. False when the language cannot use a prompt, even if a saved preset was selected. The prompt itself is not included."
           },
           "auto_generate_insights": {
             "type": [
@@ -3873,6 +3886,41 @@
           "fetch_total_bytes": {
             "type": "integer",
             "description": "The total byte size a from-url import is fetching toward. Present only while a fetch is in progress."
+          },
+          "origin_source": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "upload",
+              "url",
+              "recording",
+              null
+            ],
+            "description": "How the audio entered Hushscript: a file upload, an import from a link, or an in-app recording. Null when unknown, which is always the case for rows created before this field existed."
+          },
+          "origin_app": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "web",
+              "extension",
+              "android",
+              "ios",
+              "api",
+              null
+            ],
+            "description": "The app the job was created from: the web app, the Chrome extension, the Android or iOS app, or the API. Null when unknown, which is always the case for rows created before this field existed."
+          },
+          "title": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The current title of this job's transcript, or null while the job has no transcript or the transcript has no title. Always null for a private-mode job, and null unless the caller may read transcripts: a personal access token needs the transcripts:read scope (a transcribe-only token always gets null)."
           }
         },
         "required": [
@@ -3890,7 +3938,10 @@
           "transcript_id",
           "private_result_expires_at",
           "private_result_available",
-          "options"
+          "options",
+          "origin_source",
+          "origin_app",
+          "title"
         ]
       },
       "JobList": {
@@ -4042,6 +4093,34 @@
           },
           "body": {
             "$ref": "#/components/schemas/TranscriptEnvelope"
+          },
+          "origin_source": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "upload",
+              "url",
+              "recording",
+              null
+            ],
+            "description": "How the audio entered Hushscript: a file upload, an import from a link, or an in-app recording. Null when unknown, which is always the case for rows created before this field existed."
+          },
+          "origin_app": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "web",
+              "extension",
+              "android",
+              "ios",
+              "api",
+              null
+            ],
+            "description": "The app the job was created from: the web app, the Chrome extension, the Android or iOS app, or the API. Null when unknown, which is always the case for rows created before this field existed."
           }
         },
         "required": [
@@ -4057,7 +4136,9 @@
           "edited",
           "matter_code",
           "client_code",
-          "body"
+          "body",
+          "origin_source",
+          "origin_app"
         ]
       },
       "TranscriptListRow": {
@@ -4107,6 +4188,34 @@
               "none"
             ],
             "description": "A display hint only, never an authority on whether Insights may be generated or charged for."
+          },
+          "origin_source": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "upload",
+              "url",
+              "recording",
+              null
+            ],
+            "description": "How the audio entered Hushscript: a file upload, an import from a link, or an in-app recording. Null when unknown, which is always the case for rows created before this field existed."
+          },
+          "origin_app": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "web",
+              "extension",
+              "android",
+              "ios",
+              "api",
+              null
+            ],
+            "description": "The app the job was created from: the web app, the Chrome extension, the Android or iOS app, or the API. Null when unknown, which is always the case for rows created before this field existed."
           }
         },
         "required": [
@@ -4118,7 +4227,9 @@
           "auto_delete_at",
           "tags",
           "options",
-          "insights_state"
+          "insights_state",
+          "origin_source",
+          "origin_app"
         ]
       },
       "TranscriptList": {

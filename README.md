@@ -116,9 +116,12 @@ $transcript = $hs->transcribe('/path/to/call.mp3', [
 
 `transcribe` checks the file (format by its first bytes, duration with getID3, never less than the
 true duration), uploads it in parts, waits for the job and returns a `Transcript`. Options:
-`title`, `language`, `speakers`, `translate_to`, `keyterms`, `prompt`, `medical`, `multichannel`,
-`auto_insights`, `matter_code`, `duration_seconds`, `size`, `idempotency_key`, `concurrency`,
+`title`, `language`, `speakers`, `translate_to`, `keyterms`, `prompt`, `medical`, `vet`,
+`keep_disfluencies`, `multichannel`, `auto_insights`, `matter_code`, `duration_seconds`, `size`, `idempotency_key`, `concurrency`,
 `wait_timeout`, `on_progress`, `on_resume_token`.
+
+`speakers` (default `true`) is sent as given, with or without `translate_to`. `translate_to` takes up to 15
+distinct language codes (after trimming and lowercasing); more raises `PreflightError` (`invalid_option`).
 
 `keyterms` and `prompt` are trimmed first (Unicode whitespace); blank terms are dropped, repeated terms
 count once, and an empty list or blank prompt is not sent. Then, before any request: at most 1000 terms,

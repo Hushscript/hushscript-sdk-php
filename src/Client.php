@@ -86,6 +86,8 @@ final class Client
      * @param  array<string, mixed>  $options  title, language, speakers, translate_to, keyterms, prompt, medical,
      *                                         vet, keep_disfluencies, multichannel, auto_insights, matter_code, duration_seconds, size,
      *                                         idempotency_key, concurrency, wait_timeout, on_progress, on_resume_token.
+     *                                         `speakers` is sent as given, translations or not; `translate_to` takes up to
+     *                                         15 distinct languages (trimmed, lowercased).
      *                                         `keyterms` and `prompt` are trimmed first (blank ones are dropped and
      *                                         an empty option is not sent), then checked before any request: at most
      *                                         1000 unique terms of 128 characters and 6 words each, at most 1000 words

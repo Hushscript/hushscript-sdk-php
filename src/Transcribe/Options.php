@@ -31,6 +31,9 @@ final class Options
 
     private const MAX_PROMPT_CHARS = 2000;
 
+    /** Mirrors the backend's MAX_TRANSLATION_TARGETS (MAX_EDIT_LANGUAGES - 1): a translated transcript stays editable. */
+    private const MAX_TRANSLATION_TARGETS = 15;
+
     /** Unicode White_Space, the set Rust's `char::is_whitespace` uses; PHP's `trim()` and `\s` cover less. */
     private const WHITESPACE = '\x{9}-\x{D}\x{20}\x{85}\x{A0}\x{1680}\x{2000}-\x{200A}\x{2028}\x{2029}\x{202F}\x{205F}\x{3000}';
 
@@ -159,6 +162,8 @@ final class Options
         if ($vet && ! in_array($language, self::VET_LANGUAGES, true)) {
             throw self::invalid('vet needs language to be one of '.implode(', ', self::VET_LANGUAGES).'.');
         }
+        $translateTo = self::strings($raw, 'translate_to');
+        self::checkTranslationTargets($translateTo);
         $keyterms = self::keyterms(self::strings($raw, 'keyterms'));
         $prompt = self::prompt(self::optionalString($raw, 'prompt'));
         self::checkContextLanguage($language, $keyterms, $prompt);
@@ -175,7 +180,7 @@ final class Options
             self::optionalString($raw, 'title'),
             $language,
             self::flag($raw, 'speakers', true),
-            self::strings($raw, 'translate_to'),
+            $translateTo,
             $keyterms,
             $prompt,
             $medical,
@@ -216,7 +221,7 @@ final class Options
         if ($this->language !== null) {
             $wire['language_code'] = $this->language;
         }
-        if (! $this->speakers && $this->translateTo === []) {
+        if (! $this->speakers) {
             $wire['speaker_detection'] = false;
         }
         if ($this->translateTo !== []) {
@@ -309,6 +314,25 @@ final class Options
         }
 
         return array_map(strval(...), array_keys($unique));
+    }
+
+    /**
+     * The API counts distinct targets after trimming and lowercasing and drops blanks; more than the limit is refused.
+     *
+     * @param  list<string>  $targets
+     */
+    private static function checkTranslationTargets(array $targets): void
+    {
+        $distinct = [];
+        foreach ($targets as $target) {
+            $code = strtolower(self::trim($target));
+            if ($code !== '') {
+                $distinct[$code] = true;
+            }
+        }
+        if (count($distinct) > self::MAX_TRANSLATION_TARGETS) {
+            throw self::invalid('translate_to takes up to '.self::MAX_TRANSLATION_TARGETS.' distinct languages.');
+        }
     }
 
     private static function prompt(?string $prompt): ?string
