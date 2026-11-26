@@ -39,10 +39,10 @@ final class Options
 
     private const MAX_MATTER_CODE = 64;
 
-    /** Mirrors the backend's MEDICAL_LANGUAGES, compared exactly. */
+    /** Mirrors the backend's MEDICAL_LANGUAGES, compared after trim and lowercase. */
     private const MEDICAL_LANGUAGES = ['en', 'en_au', 'en_uk', 'en_us', 'es', 'fr', 'de', 'de_ch'];
 
-    /** Mirrors the backend's VET_LANGUAGES, compared exactly. */
+    /** Mirrors the backend's VET_LANGUAGES, compared after trim and lowercase. */
     private const VET_LANGUAGES = ['en', 'en_au', 'en_uk', 'en_us', 'es', 'fr', 'de', 'de_ch'];
 
     /** Mirrors the API's STT37_LANGUAGES: the languages that apply key terms and a prompt. */
@@ -156,10 +156,11 @@ final class Options
         if ($medical && $vet) {
             throw self::invalid('medical and vet cannot be used together.');
         }
-        if ($medical && ! in_array($language, self::MEDICAL_LANGUAGES, true)) {
+        $languageCode = strtolower(self::trim($language ?? ''));
+        if ($medical && ! in_array($languageCode, self::MEDICAL_LANGUAGES, true)) {
             throw self::invalid('medical needs language to be one of '.implode(', ', self::MEDICAL_LANGUAGES).'.');
         }
-        if ($vet && ! in_array($language, self::VET_LANGUAGES, true)) {
+        if ($vet && ! in_array($languageCode, self::VET_LANGUAGES, true)) {
             throw self::invalid('vet needs language to be one of '.implode(', ', self::VET_LANGUAGES).'.');
         }
         $translateTo = self::strings($raw, 'translate_to');

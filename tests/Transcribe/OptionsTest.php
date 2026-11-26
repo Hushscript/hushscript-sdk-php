@@ -254,6 +254,18 @@ final class OptionsTest extends TestCase
         }
     }
 
+    public function testMedicalAndVetCompareTheLanguageAsTheApiNormalizesIt(): void
+    {
+        self::assertSame(
+            ['language_code' => ' EN ', 'medical_mode' => true],
+            Options::forTranscribe(['language' => ' EN ', 'medical' => true])->transcriptionOptions(),
+        );
+        self::assertSame(
+            ['language_code' => 'De_CH', 'vet_mode' => true],
+            Options::forTranscribe(['language' => 'De_CH', 'vet' => true])->transcriptionOptions(),
+        );
+    }
+
     /** @return iterable<string, array{string}> */
     public static function stt37Languages(): iterable
     {
