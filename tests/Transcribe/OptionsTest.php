@@ -254,6 +254,18 @@ final class OptionsTest extends TestCase
         }
     }
 
+    public function testMedicalAndVetCompareTheLanguageAsTheApiNormalizesIt(): void
+    {
+        self::assertSame(
+            ['language_code' => ' EN ', 'medical_mode' => true],
+            Options::forTranscribe(['language' => ' EN ', 'medical' => true])->transcriptionOptions(),
+        );
+        self::assertSame(
+            ['language_code' => 'De_CH', 'vet_mode' => true],
+            Options::forTranscribe(['language' => 'De_CH', 'vet' => true])->transcriptionOptions(),
+        );
+    }
+
     /** @return iterable<string, array{string}> */
     public static function stt37Languages(): iterable
     {
@@ -621,11 +633,35 @@ final class OptionsTest extends TestCase
         );
     }
 
-    public function testTranslationForcesSpeakersAndListsTheTargets(): void
+    public function testTranslationDoesNotChangeSpeakerDetection(): void
     {
-        $wire = Options::forTranscribe(['speakers' => false, 'translate_to' => ['es', 'fr']])->transcriptionOptions();
+        $off = Options::forTranscribe(['speakers' => false, 'translate_to' => ['es', 'fr']])->transcriptionOptions();
+        $on = Options::forTranscribe(['translate_to' => ['es', 'fr']])->transcriptionOptions();
 
-        self::assertSame(['translation_targets' => ['es', 'fr']], $wire);
+        self::assertSame(['speaker_detection' => false, 'translation_targets' => ['es', 'fr']], $off);
+        self::assertSame(['translation_targets' => ['es', 'fr']], $on);
+    }
+
+    public function testFifteenDistinctTranslationTargetsAreAccepted(): void
+    {
+        $targets = ['es', 'fr', 'de', 'it', 'pt', 'nl', 'af', 'sq', 'am', 'ar', 'hy', 'as', 'az', 'ba', 'eu'];
+
+        self::assertSame($targets, Options::forTranscribe(['translate_to' => $targets])->translateTo);
+        $repeated = [...$targets, ' ES ', 'Fr', ' '];
+        self::assertCount(18, Options::forTranscribe(['translate_to' => $repeated])->translateTo);
+    }
+
+    public function testSixteenDistinctTranslationTargetsAreRefused(): void
+    {
+        $targets = ['es', 'fr', 'de', 'it', 'pt', 'nl', 'af', 'sq', 'am', 'ar', 'hy', 'as', 'az', 'ba', 'eu', 'be'];
+
+        try {
+            Options::forTranscribe(['translate_to' => $targets]);
+            self::fail('expected a PreflightError');
+        } catch (PreflightError $error) {
+            self::assertSame('invalid_option', $error->errorCode);
+            self::assertSame('translate_to takes up to 15 distinct languages.', $error->getMessage());
+        }
     }
 
     public function testResumeAndWaitTakeTheirOwnOptionsOnly(): void
