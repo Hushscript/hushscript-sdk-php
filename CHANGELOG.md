@@ -17,6 +17,21 @@
 
 * README links point at the live pricing page and the SDK section of the developers page; the old `/pricing` and `/sdks` URLs redirect there.
 
+## [1.2.0](https://github.com/Hushscript/hushscript-sdk-php/compare/v1.1.3...v1.2.0) (2026-11-27)
+
+
+### Bug Fixes
+
+* compare the language for medical and vet as the api normalizes it ([14f8439](https://github.com/Hushscript/hushscript-sdk-php/commit/14f8439fdade314599fa796e4704be3d84762459))
+* sync the api spec with production and pin conformance v1.1.0 ([be12c8e](https://github.com/Hushscript/hushscript-sdk-php/commit/be12c8e007f52498bddcb6a986600937f099b387))
+* translation no longer forces speakers; cap translate_to at 15 targets; regen spec ([2b38e4d](https://github.com/Hushscript/hushscript-sdk-php/commit/2b38e4d4ed55fabb94c8b679d06a695f7ddb6ac0))
+
+
+### Miscellaneous Chores
+
+* pin conformance to the stt-3.7 suite on develop ([d61c53e](https://github.com/Hushscript/hushscript-sdk-php/commit/d61c53e67e7e8b68efa75901353914f2f1215644))
+* promote develop to main ([cf77050](https://github.com/Hushscript/hushscript-sdk-php/commit/cf770508838dddf8cb87f8a560079098cc26d305))
+
 ## [1.1.3](https://github.com/Hushscript/hushscript-sdk-php/compare/v1.1.2...v1.1.3) (2026-11-09)
 
 
