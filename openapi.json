@@ -104,7 +104,12 @@
                       "string",
                       "null"
                     ],
-                    "description": "Optional job mode, e.g. a private-result upload."
+                    "enum": [
+                      "standard",
+                      "private",
+                      null
+                    ],
+                    "description": "standard (the default when absent or null) or private: a private-result upload saves no transcript and returns a password-protected archive. Any other value is refused."
                   },
                   "part_size_bytes": {
                     "type": [
@@ -164,6 +169,48 @@
                               "null"
                             ],
                             "description": "Free-text context to bias transcription toward. Refused with invalid_transcription_options when the language is one where a prompt has no effect. Sent as written, separately from the key terms; the two share one provider token budget."
+                          },
+                          "one_off_keyterms": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            },
+                            "description": "Key terms for this job only, merged with keyterms_prompt and the terms of any dictionary_ids. Same limits as keyterms_prompt: up to 1000 terms of at most 6 words each, and at most 1,000 words in total across all key terms. Refused with invalid_transcription_options on a language where key terms have no effect."
+                          },
+                          "one_off_prompt": {
+                            "type": [
+                              "string",
+                              "null"
+                            ],
+                            "description": "Prompt text for this job only, joined to prompt and any prompt_preset_id text. Refused with invalid_transcription_options on a language where a prompt has no effect. Shares the provider token budget with the key terms."
+                          },
+                          "dictionary_ids": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            },
+                            "description": "Saved dictionaries to apply, by the 32-character lowercase hex ids that GET /v1/transcription-context lists. Their terms join the key terms and count toward the key-term limits. Duplicates are ignored; at most 50 distinct ids. A malformed id or one the caller cannot read is refused with invalid_transcription_options. On a language where key terms have no effect the selection is skipped, not refused."
+                          },
+                          "prompt_preset_id": {
+                            "type": [
+                              "string",
+                              "null"
+                            ],
+                            "description": "A saved prompt preset to apply, by the 32-character lowercase hex id that GET /v1/transcription-context lists. Its text is joined to prompt and one_off_prompt. A malformed id or one the caller cannot read is refused with invalid_transcription_options. On a language where a prompt has no effect the selection is skipped, not refused."
+                          },
+                          "expected_languages": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            },
+                            "description": "Auto-detection hint: restrict language detection to these codes (any code accepted by language_code). Ignored when language_code is set. An unsupported code is refused with invalid_transcription_options. Key terms, a prompt and keep_disfluencies apply when every expected language supports them, are skipped when none does, and otherwise apply only if the detected language does."
+                          },
+                          "fallback_language": {
+                            "type": [
+                              "string",
+                              "null"
+                            ],
+                            "description": "Auto-detection hint: the language to use when detection is unsure. Must be one of expected_languages, otherwise refused with invalid_transcription_options. Ignored when language_code is set."
                           },
                           "medical_mode": {
                             "type": "boolean",
@@ -5504,15 +5551,18 @@
             "description": "The scopes carried by pat, identical to the predecessor's."
           },
           "expires_at": {
-            "type": "integer",
-            "nullable": true,
+            "type": [
+              "integer",
+              "null"
+            ],
             "description": "The successor's expiry policy, carried over from the predecessor unchanged. Null when the predecessor never expired."
           }
         },
         "required": [
           "pat",
           "pat_id",
-          "scopes"
+          "scopes",
+          "expires_at"
         ]
       },
       "OrgSummaryResponse": {
@@ -5672,14 +5722,6 @@
             ],
             "description": "The signed-in caller's own month-to-date spend against the pool. Null under the same condition caller_effective_cap_seconds is null."
           },
-          "is_owner": {
-            "type": "boolean",
-            "description": "Whether the signed-in caller is the workspace's single transferable owner (distinct from is_admin)."
-          },
-          "owner_user_id": {
-            "type": "string",
-            "description": "The id of the workspace's transferable owner, visible to every member. Falls back to the org's creator if owner_user_id was never explicitly set on the row."
-          },
           "custody": {
             "type": "string",
             "description": "private or firm. private: transcripts belong to the member, no reviewer can open them. firm: a transcript created while a member belongs to the workspace is workspace property; is_reviewer members can open it."
@@ -5704,6 +5746,45 @@
               "null"
             ],
             "description": "The retention day count the armed re-clamp will apply, or null when none is scheduled. Mirrors max_retention_days at the moment the re-clamp was armed, not necessarily the current value."
+          },
+          "matter_code_policy": {
+            "type": "string",
+            "enum": [
+              "off",
+              "optional",
+              "required"
+            ],
+            "description": "Whether uploads by members must carry a matter_code: off, optional, or required (an upload without one is refused with org_matter_code_required)."
+          },
+          "rebill_rate_cents_per_hour": {
+            "type": "integer",
+            "description": "The workspace's client rebill rate in US cents per hour of audio, used for usage reports and exports."
+          },
+          "letterhead": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "description": "The workspace letterhead printed on exports, or null when none is set.",
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "address_lines": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "footer": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "name",
+              "address_lines",
+              "footer"
+            ]
           }
         },
         "required": [
@@ -5737,12 +5818,13 @@
           "member_cap_seconds",
           "caller_effective_cap_seconds",
           "caller_spent_seconds_this_month",
-          "is_owner",
-          "owner_user_id",
           "custody",
           "custody_switch_at",
           "retention_reclamp_at",
-          "retention_reclamp_days"
+          "retention_reclamp_days",
+          "matter_code_policy",
+          "rebill_rate_cents_per_hour",
+          "letterhead"
         ]
       }
     }
