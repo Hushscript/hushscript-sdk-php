@@ -12,6 +12,10 @@
 * `translate_to` takes up to 15 distinct targets (trimmed, lowercased); more raises `PreflightError` (`invalid_option`) before any request.
 * the bundled API spec is regenerated from the current backend.
 
+### Documentation
+
+* README links point at the live pricing page and the SDK section of the developers page; the old `/pricing` and `/sdks` URLs redirect there.
+
 ## 1.0.0 (2026-10-13)
 
 
