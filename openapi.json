@@ -186,7 +186,6 @@
                             "items": {
                               "type": "string"
                             },
-                            "maxItems": 15,
                             "description": "Locales to additionally translate the transcript into: any language code accepted by language_code except the regional variants (en_au, en_uk, en_us, de_ch), 99 in all. At most 15 distinct targets per upload (a saved edit holds the original plus 15 translations); more is refused with invalid_transcription_options. A target equal to the source language is refused. Each target adds a 25 percent surcharge on the duration."
                           },
                           "auto_generate_insights": {

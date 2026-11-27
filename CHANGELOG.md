@@ -10,7 +10,8 @@
 
 * `translate_to` no longer forces speaker detection on: `speakers: false` is sent as given, translations or not.
 * `translate_to` takes up to 15 distinct targets (trimmed, lowercased); more raises `PreflightError` (`invalid_option`) before any request.
-* the bundled API spec is regenerated from the current backend.
+* the bundled API spec is regenerated from the current backend and synced with production: `translation_targets` no longer declares `maxItems` (the backend counts the 15-target cap after dedup, as the SDK preflight already does).
+* the conformance suite is pinned to the released `v1.1.0` tag.
 
 ### Documentation
 
