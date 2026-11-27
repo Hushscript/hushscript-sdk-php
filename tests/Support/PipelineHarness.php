@@ -159,7 +159,7 @@ final class PipelineHarness
             'actual_seconds' => null,
             'billable_seconds' => null,
             'created_at' => 1760000000,
-            'options' => ['language_code' => null, 'speaker_detection' => true, 'medical_mode' => false, 'multichannel' => false, 'translation_targets' => [], 'keyterms' => false, 'prompt' => false, 'auto_generate_insights' => null],
+            'options' => ['language_code' => null, 'speaker_detection' => true, 'medical_mode' => false, 'vet_mode' => false, 'keep_disfluencies' => false, 'multichannel' => false, 'translation_targets' => [], 'keyterms' => false, 'prompt' => false, 'auto_generate_insights' => null],
         ], ...$changes];
     }
 

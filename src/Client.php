@@ -84,13 +84,17 @@ final class Client
      *                                 reads one that can seek from its start, and one that cannot from where it stands
      *                                 (that must be the first byte of the file). It never closes a stream.
      * @param  array<string, mixed>  $options  title, language, speakers, translate_to, keyterms, prompt, medical,
-     *                                         multichannel, auto_insights, matter_code, duration_seconds, size,
+     *                                         vet, keep_disfluencies, multichannel, auto_insights, matter_code, duration_seconds, size,
      *                                         idempotency_key, concurrency, wait_timeout, on_progress, on_resume_token.
+     *                                         `speakers` is sent as given, translations or not; `translate_to` takes up to
+     *                                         15 distinct languages (trimmed, lowercased).
      *                                         `keyterms` and `prompt` are trimmed first (blank ones are dropped and
      *                                         an empty option is not sent), then checked before any request: at most
-     *                                         1000 unique terms of 128 characters and 6 words each, a prompt of at
-     *                                         most 2000 characters, and 2000 for the prompt and terms compiled
-     *                                         together (203 + prompt + each term + 2 + 1 between terms)
+     *                                         1000 unique terms of 128 characters and 6 words each, at most 1000 words
+     *                                         in total across the terms, and a prompt of at most 2000 characters on its
+     *                                         own (the two are sent separately). The server also checks a token budget
+     *                                         for both, which the SDK does not estimate. Languages the universal-2
+     *                                         model serves refuse both with `invalid_option`.
      *
      * @throws \Hushscript\Exception\HushscriptException
      */

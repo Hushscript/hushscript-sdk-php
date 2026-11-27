@@ -40,6 +40,9 @@ final class OptionsTest extends TestCase
         yield 'key with a control character' => [['idempotency_key' => "0123456789abcdef\x01"]];
         yield 'medical without a language' => [['medical' => true]];
         yield 'medical in the wrong language' => [['medical' => true, 'language' => 'ja']];
+        yield 'vet without a language' => [['vet' => true]];
+        yield 'vet in a language not listed' => [['vet' => true, 'language' => 'ja']];
+        yield 'medical and vet together' => [['medical' => true, 'vet' => true, 'language' => 'en']];
         yield 'too many keyterms' => [['keyterms' => self::uniqueTerms(1001)]];
         yield 'a keyterm of 129 characters' => [['keyterms' => [str_repeat('a', 129)]]];
         yield 'a prompt of 2001 characters' => [['prompt' => str_repeat('a', 2001)]];
@@ -80,18 +83,20 @@ final class OptionsTest extends TestCase
         yield 'duration' => [['duration_seconds' => 0], 'duration_seconds must be a positive number of seconds.'];
         yield 'size' => [['size' => 0], 'size must be a positive whole number of bytes.'];
         yield 'short key' => [['idempotency_key' => 'short'], 'idempotency_key must be 16 to 128 visible ASCII characters, no spaces.'];
-        yield 'medical' => [['medical' => true], 'medical needs language to be one of en, es, fr, de.'];
+        yield 'medical' => [['medical' => true], 'medical needs language to be one of en, en_au, en_uk, en_us, es, fr, de, de_ch.'];
+        yield 'vet' => [['vet' => true], 'vet needs language to be one of en, en_au, en_uk, en_us, es, fr, de, de_ch.'];
+        yield 'medical and vet' => [['medical' => true, 'vet' => true, 'language' => 'en'], 'medical and vet cannot be used together.'];
         yield 'term count' => [['keyterms' => self::uniqueTerms(1001)], 'keyterms takes up to 1000 unique terms.'];
         yield 'term words' => [['keyterms' => ['fine', 'one two three four five six seven']], 'keyterms[1] has more than 6 words.'];
         yield 'term length' => [['keyterms' => ['fine', str_repeat('a', 129)]], 'keyterms[1] is longer than 128 characters.'];
         yield 'prompt length' => [['prompt' => str_repeat('a', 2001)], 'prompt is longer than 2000 characters.'];
-        yield 'compiled length' => [['prompt' => str_repeat('a', 1794), 'keyterms' => ['ab']], 'prompt and keyterms together exceed 2000 characters (2001).'];
+        yield 'term total words' => [['keyterms' => array_map(static fn (int $i): string => 't'.$i.' b c d e f', range(0, 166))], 'keyterms takes up to 1000 words in total (1002).'];
         yield 'matter' => [['matter_code' => str_repeat('m', 65)], 'matter_code must be at most 64 characters.'];
         yield 'auto insights' => [['auto_insights' => 1], 'auto_insights must be true, false or null.'];
         foreach (['title', 'language', 'prompt', 'matter_code', 'idempotency_key'] as $name) {
             yield $name.' type' => [[$name => 5], $name.' must be a string.'];
         }
-        foreach (['speakers', 'medical', 'multichannel'] as $name) {
+        foreach (['speakers', 'medical', 'vet', 'keep_disfluencies', 'multichannel'] as $name) {
             yield $name.' type' => [[$name => 'yes'], $name.' must be true or false.'];
         }
         foreach (['keyterms', 'translate_to'] as $name) {
@@ -231,12 +236,154 @@ final class OptionsTest extends TestCase
 
     public function testMedicalModeAcceptsEachSupportedLanguage(): void
     {
-        foreach (['en', 'es', 'fr', 'de'] as $language) {
+        foreach (['en', 'en_au', 'en_uk', 'en_us', 'es', 'fr', 'de', 'de_ch'] as $language) {
             self::assertSame(
                 ['language_code' => $language, 'medical_mode' => true],
                 Options::forTranscribe(['language' => $language, 'medical' => true])->transcriptionOptions(),
             );
         }
+    }
+
+    public function testVetModeAcceptsEachSupportedLanguage(): void
+    {
+        foreach (['en', 'en_au', 'en_uk', 'en_us', 'es', 'fr', 'de', 'de_ch'] as $language) {
+            self::assertSame(
+                ['language_code' => $language, 'vet_mode' => true],
+                Options::forTranscribe(['language' => $language, 'vet' => true])->transcriptionOptions(),
+            );
+        }
+    }
+
+    public function testMedicalAndVetCompareTheLanguageAsTheApiNormalizesIt(): void
+    {
+        self::assertSame(
+            ['language_code' => ' EN ', 'medical_mode' => true],
+            Options::forTranscribe(['language' => ' EN ', 'medical' => true])->transcriptionOptions(),
+        );
+        self::assertSame(
+            ['language_code' => 'De_CH', 'vet_mode' => true],
+            Options::forTranscribe(['language' => 'De_CH', 'vet' => true])->transcriptionOptions(),
+        );
+    }
+
+    /** @return iterable<string, array{string}> */
+    public static function stt37Languages(): iterable
+    {
+        foreach (self::stt37() as $language) {
+            yield $language => [$language];
+        }
+    }
+
+    /** @return iterable<string, array{string}> */
+    public static function universal2Languages(): iterable
+    {
+        foreach ([
+            'am', 'as', 'az', 'ba', 'be', 'bg', 'bn', 'bo', 'br', 'bs', 'cs', 'cy', 'el', 'eu', 'fo', 'gu', 'ha', 'haw',
+            'hr', 'ht', 'hu', 'hy', 'id', 'is', 'jw', 'ka', 'kk', 'km', 'kn', 'la', 'lb', 'ln', 'lo', 'lt', 'lv', 'mg',
+            'mi', 'mk', 'ml', 'mn', 'ms', 'mt', 'my', 'ne', 'oc', 'pa', 'pl', 'ps', 'sa', 'sd', 'si', 'sk', 'sl', 'sn',
+            'so', 'sq', 'sr', 'su', 'sw', 'ta', 'te', 'tg', 'th', 'tk', 'tl', 'tt', 'uk', 'uz', 'yi', 'yo',
+        ] as $language) {
+            yield $language => [$language];
+        }
+    }
+
+    /** @return list<string> */
+    private static function stt37(): array
+    {
+        return [
+            'af', 'ar', 'ca', 'da', 'de', 'de_ch', 'en', 'en_au', 'en_uk', 'en_us', 'es', 'et', 'fa', 'fi', 'fr', 'gl',
+            'he', 'hi', 'it', 'ja', 'ko', 'mr', 'nl', 'nn', 'no', 'pt', 'ro', 'ru', 'sv', 'tr', 'ur', 'vi', 'zh',
+        ];
+    }
+
+    /** @param array<string, mixed> $raw */
+    private static function contextRefusal(array $raw): PreflightError
+    {
+        try {
+            Options::forTranscribe($raw);
+        } catch (PreflightError $error) {
+            return $error;
+        }
+        self::fail('expected invalid_option');
+    }
+
+    private static function contextMessage(string $option, string $language): string
+    {
+        return $option.' does not work for language "'.$language.'"; it needs language to be one of '.implode(', ', self::stt37()).'.';
+    }
+
+    #[DataProvider('universal2Languages')]
+    public function testKeytermsAreRefusedInEachUniversal2Language(string $language): void
+    {
+        $error = self::contextRefusal(['keyterms' => ['Hushscript'], 'language' => $language]);
+
+        self::assertSame('invalid_option', $error->errorCode);
+        self::assertNull($error->status);
+        self::assertSame(self::contextMessage('keyterms', $language), $error->getMessage());
+    }
+
+    #[DataProvider('universal2Languages')]
+    public function testPromptIsRefusedInEachUniversal2Language(string $language): void
+    {
+        $error = self::contextRefusal(['prompt' => 'Names.', 'language' => $language]);
+
+        self::assertSame('invalid_option', $error->errorCode);
+        self::assertNull($error->status);
+        self::assertSame(self::contextMessage('prompt', $language), $error->getMessage());
+    }
+
+    #[DataProvider('stt37Languages')]
+    public function testKeytermsAndPromptAreAcceptedInEachStt37Language(string $language): void
+    {
+        self::assertSame(
+            ['language_code' => $language, 'keyterms_prompt' => ['Hushscript'], 'prompt' => 'Names.'],
+            Options::forTranscribe(['keyterms' => ['Hushscript'], 'prompt' => 'Names.', 'language' => $language])->transcriptionOptions(),
+        );
+    }
+
+    public function testTheKeytermMessageNamesTheNormalizedLanguageWhenBothAreSet(): void
+    {
+        $error = self::contextRefusal(['keyterms' => ['x'], 'prompt' => 'Names.', 'language' => ' PL ']);
+
+        self::assertSame(self::contextMessage('keyterms', 'pl'), $error->getMessage());
+    }
+
+    public function testAPromptIsRefusedNextToBlankKeyterms(): void
+    {
+        $error = self::contextRefusal(['keyterms' => [' ', ''], 'prompt' => 'Names.', 'language' => 'th']);
+
+        self::assertSame(self::contextMessage('prompt', 'th'), $error->getMessage());
+    }
+
+    /** @return iterable<string, array{array<string, mixed>}> */
+    public static function contextWithoutRefusal(): iterable
+    {
+        yield 'blank key terms and a blank prompt' => [['keyterms' => [' ', ''], 'prompt' => '  ']];
+        yield 'an empty key term list' => [['keyterms' => []]];
+        yield 'no context, with keep_disfluencies' => [['keep_disfluencies' => true]];
+    }
+
+    /** @param array<string, mixed> $raw */
+    #[DataProvider('contextWithoutRefusal')]
+    public function testBlankContextIsNotRefusedInAUniversal2Language(array $raw): void
+    {
+        self::assertSame('pl', Options::forTranscribe($raw + ['language' => 'pl'])->language);
+    }
+
+    public function testKeytermsAndPromptAreAcceptedUnderAutoDetect(): void
+    {
+        self::assertSame(
+            ['keyterms_prompt' => ['Hushscript'], 'prompt' => 'Names.'],
+            Options::forTranscribe(['keyterms' => ['Hushscript'], 'prompt' => 'Names.'])->transcriptionOptions(),
+        );
+    }
+
+    public function testAnUnlistedLanguageIsLeftToTheServer(): void
+    {
+        self::assertSame(
+            ['language_code' => 'xx', 'keyterms_prompt' => ['Hushscript']],
+            Options::forTranscribe(['keyterms' => ['Hushscript'], 'language' => 'xx'])->transcriptionOptions(),
+        );
     }
 
     public function testKeytermWordsAreSeparatedByUnicodeWhitespace(): void
@@ -350,40 +497,57 @@ final class OptionsTest extends TestCase
         Options::forTranscribe(['prompt' => str_repeat('a', $limit + 1)]);
     }
 
-    public function testThePromptAndTermsAreCappedTogetherAsCompiled(): void
+    public function testThePromptIsCheckedAloneNotWithTheTerms(): void
     {
         $limit = self::limit('MAX_PROMPT_CHARS');
-        $terms = ['Hushscript', "b\u{E9}t\u{E0} \u{1F600}", 'x'];
-        $vocabulary = array_sum(array_map(static fn (string $term): int => mb_strlen($term, 'UTF-8') + 2, $terms)) + count($terms) - 1;
-        $fit = $limit - self::limit('COMPILED_PROMPT_OVERHEAD') - $vocabulary;
-
-        $options = Options::forTranscribe(['keyterms' => $terms, 'prompt' => str_repeat('a', $fit)]);
-        self::assertSame($terms, $options->keyterms);
-        self::assertSame(str_repeat('a', $fit), $options->prompt);
-        try {
-            Options::forTranscribe(['keyterms' => $terms, 'prompt' => str_repeat('a', $fit + 1)]);
-            self::fail('The compiled prompt is one character over.');
-        } catch (PreflightError $error) {
-            self::assertSame('prompt and keyterms together exceed '.$limit.' characters ('.($limit + 1).').', $error->getMessage());
-        }
-        $blankTerms = Options::forTranscribe(['keyterms' => [' ', "\t"], 'prompt' => str_repeat('a', $fit + 1)]);
-        self::assertSame(str_repeat('a', $fit + 1), $blankTerms->prompt, 'blank terms are not part of the compiled prompt');
-    }
-
-    public function testTheCompiledPromptCountsEachDistinctTermOnce(): void
-    {
-        $fit = self::limit('MAX_PROMPT_CHARS') - self::limit('COMPILED_PROMPT_OVERHEAD') - (1 + 2);
-
-        $options = Options::forTranscribe(['keyterms' => ['x', ' x ', 'x'], 'prompt' => str_repeat('a', $fit)]);
-
-        self::assertSame(['x'], $options->keyterms);
-    }
-
-    public function testKeytermsWithoutAPromptSkipTheCompiledCap(): void
-    {
         $terms = array_map(static fn (int $i): string => str_repeat('k', 120).$i, range(0, 999));
 
-        self::assertCount(1000, Options::forTranscribe(['keyterms' => $terms])->keyterms);
+        $options = Options::forTranscribe(['keyterms' => $terms, 'prompt' => str_repeat('a', $limit)]);
+
+        self::assertCount(1000, $options->keyterms);
+        self::assertSame(str_repeat('a', $limit), $options->prompt);
+        $this->expectException(PreflightError::class);
+        $this->expectExceptionMessage('prompt is longer than '.$limit.' characters.');
+
+        Options::forTranscribe(['keyterms' => ['x'], 'prompt' => str_repeat('a', $limit + 1)]);
+    }
+
+    public function testTheTermsAreCappedInWordsInTotal(): void
+    {
+        $limit = self::limit('MAX_KEYTERM_TOTAL_WORDS');
+        $fit = array_merge(array_map(static fn (int $i): string => 'a'.$i.' b c d e f', range(0, 165)), ['x y z h']);
+        $words = array_sum(array_map(static fn (string $term): int => substr_count($term, ' ') + 1, $fit));
+        self::assertSame($limit, $words);
+
+        self::assertSame($fit, Options::forTranscribe(['keyterms' => $fit])->keyterms);
+        try {
+            Options::forTranscribe(['keyterms' => array_merge($fit, ['one'])]);
+            self::fail('The terms are one word over.');
+        } catch (PreflightError $error) {
+            self::assertSame('invalid_option', $error->errorCode);
+            self::assertSame('keyterms takes up to '.$limit.' words in total ('.($limit + 1).').', $error->getMessage());
+        }
+    }
+
+    public function testTheWordTotalCountsTrimmedDistinctTermsByUnicodeWhitespace(): void
+    {
+        $limit = self::limit('MAX_KEYTERM_TOTAL_WORDS');
+        $terms = array_map(static fn (int $i): string => 'a'.$i." b\u{3000}c \u{A0}d\u{2003}e f", range(0, 165));
+        $terms[] = ' x y z h ';
+        $repeats = array_merge($terms, $terms, ['', " \t"]);
+
+        self::assertCount(167, Options::forTranscribe(['keyterms' => $repeats])->keyterms);
+        $this->expectException(PreflightError::class);
+        $this->expectExceptionMessage('in total ('.($limit + 1).')');
+
+        Options::forTranscribe(['keyterms' => array_merge($repeats, ['one'])]);
+    }
+
+    public function testBlankTermsAndAPromptAddNothingToTheWordTotal(): void
+    {
+        $terms = array_merge(array_map(static fn (int $i): string => 't'.$i, range(0, 999)), [' ', "\t"]);
+
+        self::assertCount(1000, Options::forTranscribe(['keyterms' => $terms, 'prompt' => str_repeat('p ', 900)])->keyterms);
     }
 
     public function testEmptyAndBlankOptionsAreNotSent(): void
@@ -444,6 +608,7 @@ final class OptionsTest extends TestCase
             'keyterms' => ['Hushscript', 'two words'],
             'prompt' => 'A meeting',
             'medical' => true,
+            'keep_disfluencies' => true,
             'multichannel' => true,
             'auto_insights' => false,
             'matter_code' => 'M-1',
@@ -456,6 +621,7 @@ final class OptionsTest extends TestCase
                 'keyterms_prompt' => ['Hushscript', 'two words'],
                 'prompt' => 'A meeting',
                 'medical_mode' => true,
+                'keep_disfluencies' => true,
                 'multichannel' => true,
                 'auto_generate_insights' => false,
             ],
@@ -467,11 +633,35 @@ final class OptionsTest extends TestCase
         );
     }
 
-    public function testTranslationForcesSpeakersAndListsTheTargets(): void
+    public function testTranslationDoesNotChangeSpeakerDetection(): void
     {
-        $wire = Options::forTranscribe(['speakers' => false, 'translate_to' => ['es', 'fr']])->transcriptionOptions();
+        $off = Options::forTranscribe(['speakers' => false, 'translate_to' => ['es', 'fr']])->transcriptionOptions();
+        $on = Options::forTranscribe(['translate_to' => ['es', 'fr']])->transcriptionOptions();
 
-        self::assertSame(['translation_targets' => ['es', 'fr']], $wire);
+        self::assertSame(['speaker_detection' => false, 'translation_targets' => ['es', 'fr']], $off);
+        self::assertSame(['translation_targets' => ['es', 'fr']], $on);
+    }
+
+    public function testFifteenDistinctTranslationTargetsAreAccepted(): void
+    {
+        $targets = ['es', 'fr', 'de', 'it', 'pt', 'nl', 'af', 'sq', 'am', 'ar', 'hy', 'as', 'az', 'ba', 'eu'];
+
+        self::assertSame($targets, Options::forTranscribe(['translate_to' => $targets])->translateTo);
+        $repeated = [...$targets, ' ES ', 'Fr', ' '];
+        self::assertCount(18, Options::forTranscribe(['translate_to' => $repeated])->translateTo);
+    }
+
+    public function testSixteenDistinctTranslationTargetsAreRefused(): void
+    {
+        $targets = ['es', 'fr', 'de', 'it', 'pt', 'nl', 'af', 'sq', 'am', 'ar', 'hy', 'as', 'az', 'ba', 'eu', 'be'];
+
+        try {
+            Options::forTranscribe(['translate_to' => $targets]);
+            self::fail('expected a PreflightError');
+        } catch (PreflightError $error) {
+            self::assertSame('invalid_option', $error->errorCode);
+            self::assertSame('translate_to takes up to 15 distinct languages.', $error->getMessage());
+        }
     }
 
     public function testResumeAndWaitTakeTheirOwnOptionsOnly(): void

@@ -5,3 +5,6 @@ extend-exclude = ["openapi.json", "go.mod", "go.sum", "generated/**", "LICENSE",
 JOD = "JOD"
 # PHP's own function name, stream_bucket_make_writeable
 writeable = "writeable"
+# Language codes (Bashkir, Faroese) in the language lists in src/Transcribe/Options.php
+ba = "ba"
+fo = "fo"

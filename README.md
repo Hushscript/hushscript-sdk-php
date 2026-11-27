@@ -7,7 +7,7 @@ the failures in between so you do not have to.
 ## Why Hushscript
 
 - **No subscription.** You buy prepaid minute packs, and nothing recurs. Current prices are on the
-  [pricing page](https://hushscript.com/pricing).
+  [pricing page](https://hushscript.com/pay-as-you-go-transcription-pricing).
 - **The audio you send isn't kept.** The audio sent for transcription isn't kept after processing. Stored
   transcripts are encrypted at rest, and you choose how long they stay.
 - **Free speaker labels and AI insights.** Speaker labels carry no extra charge (medical mode and
@@ -35,7 +35,7 @@ the failures in between so you do not have to.
 - Let an agent sign up, pay at a hosted checkout and claim its own token, with no human account.
 - Use it from Laravel; the README has a short service provider example.
 
-[Website](https://hushscript.com) · [Pricing](https://hushscript.com/pricing) · [SDK docs](https://hushscript.com/sdks) · [API reference](https://hushscript.com/developers)
+[Website](https://hushscript.com) · [Pricing](https://hushscript.com/pay-as-you-go-transcription-pricing) · [SDK docs](https://hushscript.com/developers#sdks-and-cli) · [API reference](https://hushscript.com/developers)
 
 ## Quick start
 
@@ -116,16 +116,22 @@ $transcript = $hs->transcribe('/path/to/call.mp3', [
 
 `transcribe` checks the file (format by its first bytes, duration with getID3, never less than the
 true duration), uploads it in parts, waits for the job and returns a `Transcript`. Options:
-`title`, `language`, `speakers`, `translate_to`, `keyterms`, `prompt`, `medical`, `multichannel`,
-`auto_insights`, `matter_code`, `duration_seconds`, `size`, `idempotency_key`, `concurrency`,
+`title`, `language`, `speakers`, `translate_to`, `keyterms`, `prompt`, `medical`, `vet`,
+`keep_disfluencies`, `multichannel`, `auto_insights`, `matter_code`, `duration_seconds`, `size`, `idempotency_key`, `concurrency`,
 `wait_timeout`, `on_progress`, `on_resume_token`.
+
+`speakers` (default `true`) is sent as given, with or without `translate_to`. `translate_to` takes up to 15
+distinct language codes (after trimming and lowercasing); more raises `PreflightError` (`invalid_option`).
 
 `keyterms` and `prompt` are trimmed first (Unicode whitespace); blank terms are dropped, repeated terms
 count once, and an empty list or blank prompt is not sent. Then, before any request: at most 1000 terms,
-each at most 128 characters (code points) and 6 words; a prompt of at most 2000 characters; and when both
-are set, the prompt and terms compiled together at most 2000 characters (203 + prompt + each term + 2,
-plus 1 between terms). A violation raises `PreflightError` (`invalid_option`) naming the limit and the
-term index.
+each at most 128 characters (code points) and 6 words; at most 1000 words in total across the terms; and
+a prompt of at most 2000 characters, on its own. The two are sent separately, so the prompt is not counted
+with the terms. The server also checks a token budget for both together; the SDK does not estimate it,
+and the server answers 422 when it is exceeded. Languages that the universal-2 model serves (most
+languages outside the supported list) refuse `keyterms` and `prompt` with `invalid_option`; the message
+lists the languages that accept them. A violation raises `PreflightError` (`invalid_option`) naming the
+limit and, for a single term, its index.
 
 When the call fails after the upload was created, the error carries `idempotencyKey` and
 `resumeToken`. A wait that runs out raises `WaitTimeoutError` with the token:
@@ -506,7 +512,7 @@ client-side code is a leaked token.
 Personal accounts buy prepaid minute packs. The price of a pack depends on your country, and your
 minutes stay valid for a year after your last transcription or purchase. A transcription uses the
 minutes of the recording; medical mode and each translation target use more. Current prices are on
-[hushscript.com/pricing](https://hushscript.com/pricing).
+[hushscript.com/pay-as-you-go-transcription-pricing](https://hushscript.com/pay-as-you-go-transcription-pricing).
 
 ## Requirements
 
@@ -516,7 +522,7 @@ minutes of the recording; medical mode and each translation target use more. Cur
 
 ## Links
 
-- Documentation: <https://hushscript.com/sdks>
+- Documentation: <https://hushscript.com/developers#sdks-and-cli>
 - REST API reference: <https://hushscript.com/developers>
 - Package on Packagist: <https://packagist.org/packages/hushscript/sdk>
 - Source: <https://github.com/Hushscript/hushscript-sdk-php>
