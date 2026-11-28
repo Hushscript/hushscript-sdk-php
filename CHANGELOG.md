@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.2.1](https://github.com/Hushscript/hushscript-sdk-php/compare/v1.2.0...v1.2.1) (2026-11-27)
+
+
+### Bug Fixes
+
+* sync the spec with the backend: org summary drops is_owner and owner_user_id (never sent) and adds matter_code_policy, rebill_rate_cents_per_hour and letterhead; upload mode is standard or private; six more upload options; rotate always returns expires_at ([c244c89](https://github.com/Hushscript/hushscript-sdk-php/commit/c244c894bdbe8fc7667ca0055bf8985a34f8f58f))
+
+
+### Miscellaneous Chores
+
+* promote develop to main ([d8c2be5](https://github.com/Hushscript/hushscript-sdk-php/commit/d8c2be5f6320c9c49b4604c7f99b036b98ec93ea))
+
 ## [1.2.0](https://github.com/Hushscript/hushscript-sdk-php/compare/v1.1.3...v1.2.0) (2026-11-27)
 
 ### Features
